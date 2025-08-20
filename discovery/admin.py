@@ -1,5 +1,6 @@
-from .models import BACnetDevice, BACnetPoint
 from django.contrib import admin
+
+from .models import BACnetDevice, BACnetPoint
 
 
 # Register your models here.
