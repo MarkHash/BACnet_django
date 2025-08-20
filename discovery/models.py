@@ -1,9 +1,12 @@
 from django.db import models
 from django.utils import timezone
 
+
 # Create your models here.
 class BACnetDevice(models.Model):
-    device_id = models.IntegerField(unique=True, help_text="BACnet device instance number")
+    device_id = models.IntegerField(
+        unique=True, help_text="BACnet device instance number"
+    )
     address = models.CharField(max_length=50, help_text="IP address of device")
     vendor_id = models.IntegerField(help_text="BACnet vendor ID")
 
@@ -14,7 +17,7 @@ class BACnetDevice(models.Model):
     points_read = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ['device_id']
+        ordering = ["device_id"]
         verbose_name = "BACnet Device"
         verbose_name_plural = "BACnet Devices"
 
@@ -26,26 +29,31 @@ class BACnetDevice(models.Model):
         self.is_online = True
         self.save()
 
+
 class BACnetPoint(models.Model):
     device = models.ForeignKey(
         BACnetDevice,
         on_delete=models.CASCADE,
-        related_name='points',
-        help_text="Device this point belongs to"
+        related_name="points",
+        help_text="Device this point belongs to",
     )
 
     object_type = models.CharField(max_length=50, help_text="BACnet object type")
-    instance_number = models.CharField(max_length=50, help_text="BACnet instance number")
+    instance_number = models.CharField(
+        max_length=50, help_text="BACnet instance number"
+    )
     identifier = models.CharField(max_length=50, help_text="Full identifier")
 
-    object_name = models.CharField(max_length=200, blank=True, help_text="Human-readable name")
+    object_name = models.CharField(
+        max_length=200, blank=True, help_text="Human-readable name"
+    )
     description = models.TextField(blank=True, help_text="Point description")
 
     created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['object_type', 'instance_number']
-        unique_together = ['device', 'object_type', 'instance_number']
+        ordering = ["object_type", "instance_number"]
+        unique_together = ["device", "object_type", "instance_number"]
         verbose_name = "BACnet Point"
         verbose_name_plural = "BACnet Points"
 
