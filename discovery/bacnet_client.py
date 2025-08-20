@@ -48,9 +48,9 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 defaults={
                     "address": str(apdu.pduSource),
                     "vendor_id": vendor_id,
-                    'is_online': True,
-                    'points_read': False
-                }
+                    "is_online": True,
+                    "points_read": False,
+                },
             )
 
             if not created:
@@ -61,12 +61,15 @@ class DjangoBACnetClient(BIPSimpleApplication):
             logger.debug(f"Device {device_id} saved to database: {device.address}")
 
             if self.callback:
-                self.callback('device_found', {
-                    "device_id": device_id,
-                    "address": str(apdu.pduSource),
-                    "vendor_id": vendor_id,
-                    'created': created
-                })
+                self.callback(
+                    "device_found",
+                    {
+                        "device_id": device_id,
+                        "address": str(apdu.pduSource),
+                        "vendor_id": vendor_id,
+                        "created": created,
+                    },
+                )
 
         except Exception as e:
             logger.error(f"Error in do_IAMRequest: {e}")
@@ -84,22 +87,32 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 try:
                     device = BACnetDevice.objects.get(address=device_address)
                 except BACnetDevice.DoesNotExist:
-                    logger.error(f"ReadProperty response from unknown device: {device_address}")
+                    logger.error(
+                        f"ReadProperty response from unknown device: {device_address}"
+                    )
                     return
 
                 if (
                     apdu.objectIdentifier[0] == "device"
                     and apdu.propertyIdentifier == "objectList"
                 ):
-                    points = self._parse_object_list(apdu.propertyValue, device.device_id)
+                    points = self._parse_object_list(
+                        apdu.propertyValue, device.device_id
+                    )
                     if points:
                         self._save_points_to_database(device, points)
-                        logger.debug(f"Saved {len(points)} points for device{device.device_id}")
-                    
+                        logger.debug(
+                            f"Saved {len(points)} points for device{device.device_id}"
+                        )
+
                         if self.callback:
-                            self.callback('points_found', {
-                                'device_id': device.device_id, 'point_count': len(points)
-                                })
+                            self.callback(
+                                "points_found",
+                                {
+                                    "device_id": device.device_id,
+                                    "point_count": len(points),
+                                },
+                            )
             elif iocb.ioError:
                 logger.error(f"ReadProperty error: {iocb.ioError}")
             else:
@@ -113,7 +126,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
         points = []
 
         try:
-            if property_value.__class__.__name__ = 'Any':
+            if property_value.__class__.__name__ == "Any":
                 object_list = property_value.cast_out(ArrayOf(ObjectIdentifier))
             else:
                 object_list = property_value
@@ -128,11 +141,13 @@ class DjangoBACnetClient(BIPSimpleApplication):
                     obj_type_name = str(obj_item[0])
                     obj_instance_num = int(obj_item[1])
 
-                    points.append({
-                        "type": obj_type_name,
-                        "instance": obj_instance_num,
-                        "identifier": f"{obj_type_name}:{obj_instance_num}"
-                        })
+                    points.append(
+                        {
+                            "type": obj_type_name,
+                            "instance": obj_instance_num,
+                            "identifier": f"{obj_type_name}:{obj_instance_num}",
+                        }
+                    )
                 except Exception as e:
                     logger.error(f"    Error parsing object {i}: {e}")
                     continue
@@ -140,18 +155,16 @@ class DjangoBACnetClient(BIPSimpleApplication):
         except Exception as e:
             logger.error(f"    Error parsing object list: {e}")
             return []
-        
+
         return points
 
     def _save_points_to_database(self, device, points):
         for point_data in points:
             point, created = BACnetPoint.objects.get_or_create(
                 device=device,
-                object_type=point_data['object_type'],
-                instance_number=point_data['instance_number'],
-                defaults={
-                    'identifier': point_data['identifier']
-                }
+                object_type=point_data["object_type"],
+                instance_number=point_data["instance_number"],
+                defaults={"identifier": point_data["identifier"]},
             )
 
             if created:
@@ -213,9 +226,8 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 "device_id": device.device_id,
                 "address": device.address,
                 "vendor_id": device.vendor_id,
-                'last_seen': device.last_seen,
-                'points_read': device.points_read
-
+                "last_seen": device.last_seen,
+                "points_read": device.points_read,
             }
         return devices
 
@@ -224,11 +236,13 @@ class DjangoBACnetClient(BIPSimpleApplication):
             device = BACnetDevice.objects.get(device_id=device_id)
             points = []
             for point in device.points.all():
-                points.append({
-                    "type": obj_type_name,
-                    "instance": obj_instance_num,
-                    "identifier": f"{obj_type_name}:{obj_instance_num}"
-                })
+                points.append(
+                    {
+                        "type": obj_type_name,
+                        "instance": obj_instance_num,
+                        "identifier": f"{obj_type_name}:{obj_instance_num}",
+                    }
+                )
             return points
         except BACnetDevice.DoesNotExist:
             return []
@@ -236,7 +250,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
     def start_bacnet_discovery(callback=None):
         logger.debug("🚀 Starting BACnet discovery...")
         return True
-    
+
     def get_device_count():
         return BACnetDevice.count()
 
