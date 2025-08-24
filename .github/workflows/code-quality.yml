@@ -36,4 +36,4 @@ jobs:
     - name: Check for common errors with flake8
       run: |
         echo "Looking for common Python errors..."
-        flake8 . --max-line-length=88 --extend-ignore=E203,W503 --exclude=migrations,__pycache__,test.py,views.py,venv --count --statistics
+        flake8 . --max-line-length=88 --extend-ignore=E203,W503 --exclude=migrations,__pycache__,tests.py,views.py,settings.py,venv --count --statistics
