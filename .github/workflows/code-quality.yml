@@ -26,14 +26,14 @@ jobs:
     - name: Check code formatting with Black
       run: |
         echo "Checking if code is properly formatted..."
-        black --check --diff .
+        black --check --diff --exclude="migrations|__pycache__|\.pyc" .
 
     - name: Check import organization
       run: |
         echo "Checking if imports are organized..."
-        isort --check-only --diff .
+        isort --check-only --diff --skip-glob="*/migrations/*" .
 
     - name: Check for common errors with flake8
       run: |
         echo "Looking for common Python errors..."
-        flake8 . --max-line-length=88 --extend-ignore=E203,W503 --count --statistics
+        flake8 . --max-line-length=88 --extend-ignore=E203,W503 --exclude=migrations,__pycache__,*.pyc,venv --count --statistics
