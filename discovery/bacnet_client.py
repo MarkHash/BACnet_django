@@ -115,7 +115,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
             elif iocb.ioError:
                 logger.error(f"ReadProperty error: {iocb.ioError}")
             else:
-                logger.error(f"ReadProperty timeout")
+                logger.error("ReadProperty timeout")
 
         except Exception as e:
             logger.error(f"Error processing ReadProperty response: {e}")
@@ -237,9 +237,9 @@ class DjangoBACnetClient(BIPSimpleApplication):
             for point in device.points.all():
                 points.append(
                     {
-                        "type": obj_type_name,
-                        "instance": obj_instance_num,
-                        "identifier": f"{obj_type_name}:{obj_instance_num}",
+                        "type": point.object_type,
+                        "instance": point.instance_number,
+                        "identifier": point.identifier,
                     }
                 )
             return points
@@ -262,6 +262,6 @@ class DjangoBACnetClient(BIPSimpleApplication):
     def clear_devices(self):
         device_count = BACnetDevice.objects.count()
         point_count = BACnetPoint.objects.count()
-        BacnetDevice.objects.all().delete()
+        BACnetDevice.objects.all().delete()
 
         return device_count, point_count
