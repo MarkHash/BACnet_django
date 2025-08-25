@@ -247,18 +247,23 @@ class DjangoBACnetClient(BIPSimpleApplication):
         except BACnetDevice.DoesNotExist:
             return []
 
+
 def start_bacnet_discovery(callback=None):
     logger.debug("🚀 Starting BACnet discovery...")
     return True
 
+
 def get_device_count():
     return BACnetDevice.count()
+
 
 def get_online_device_count():
     return BACnetDevice.objects.filter(is_online=True).count()
 
+
 def get_total_points():
     return BACnetPoint.objects.count()
+
 
 def clear_all_devices():
     device_count = BACnetDevice.objects.count()
