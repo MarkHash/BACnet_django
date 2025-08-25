@@ -1,21 +1,20 @@
-import logging
 import json
+import logging
+import os
+import sys
 import threading
 import time
-import sys
-import os
-
-from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Count
 
 from bacpypes.consolelogging import ConfigArgumentParser
-from bacpypes.local.device import LocalDeviceObject
 from bacpypes.core import run, enable_sleeping
+from bacpypes.local.device import LocalDeviceObject
+from django.db.models import Count
+from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
 
-from .models import BACnetDevice, BACnetPoint
 from .bacnet_client import DjangoBACnetClient, clear_all_devices
+from .models import BACnetDevice, BACnetPoint
 
 # Create your views here.
 logging.basicConfig(
