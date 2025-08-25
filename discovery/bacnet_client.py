@@ -159,10 +159,11 @@ class DjangoBACnetClient(BIPSimpleApplication):
 
     def _save_points_to_database(self, device, points):
         for point_data in points:
+            logging.debug(f"point_data: {point_data}")
             point, created = BACnetPoint.objects.get_or_create(
                 device=device,
-                object_type=point_data["object_type"],
-                instance_number=point_data["instance_number"],
+                object_type=point_data["type"],
+                instance_number=point_data["instance"],
                 defaults={"identifier": point_data["identifier"]},
             )
 
@@ -194,9 +195,9 @@ class DjangoBACnetClient(BIPSimpleApplication):
         except Exception as e:
             logger.error(f"Error sending WhoIs: {e}")
 
-    def read_device_objects(self, device_id):
+    def read_device_points(self, device_id):
         if _debug:
-            DjangoBACnetClient._debug("read_device_objeccts %r", device_id)
+            DjangoBACnetClient._debug("read_device_objects %r", device_id)
 
         try:
             device = BACnetDevice.objects.get(device_id=device_id)
@@ -246,22 +247,22 @@ class DjangoBACnetClient(BIPSimpleApplication):
         except BACnetDevice.DoesNotExist:
             return []
 
-    def start_bacnet_discovery(callback=None):
-        logger.debug("🚀 Starting BACnet discovery...")
-        return True
+def start_bacnet_discovery(callback=None):
+    logger.debug("🚀 Starting BACnet discovery...")
+    return True
 
-    def get_device_count():
-        return BACnetDevice.count()
+def get_device_count():
+    return BACnetDevice.count()
 
-    def get_online_device_count():
-        return BACnetDevice.objects.filter(is_online=True).count()
+def get_online_device_count():
+    return BACnetDevice.objects.filter(is_online=True).count()
 
-    def get_total_points():
-        return BACnetPoint.objects.count()
+def get_total_points():
+    return BACnetPoint.objects.count()
 
-    def clear_devices(self):
-        device_count = BACnetDevice.objects.count()
-        point_count = BACnetPoint.objects.count()
-        BACnetDevice.objects.all().delete()
+def clear_all_devices():
+    device_count = BACnetDevice.objects.count()
+    point_count = BACnetPoint.objects.count()
+    BACnetDevice.objects.all().delete()
 
-        return device_count, point_count
+    return device_count, point_count

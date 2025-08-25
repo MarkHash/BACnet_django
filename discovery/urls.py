@@ -16,9 +16,18 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
+from . import views
+
+app_name = 'discovery'
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path('', include('discovery.urls')),
+    path('', views.dashboard, name='dashboard'),
+    path('device/<int:device_id>/', views.device_detail, name='device_detail'),
+
+    path('api/start-discovery/', views.start_discovery, name='start_discovery'),
+    path('api/read-poits/<int:device_id>/', views.read_device_points, name='read_device_points'),
+    path('api/clear-devices/', views.clear_devices, name='clear_devices'),
+    path('api/devices/', views.device_list_api, name='device_list_api'),
 ]
