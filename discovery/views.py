@@ -6,11 +6,11 @@ import threading
 import time
 
 from bacpypes.consolelogging import ConfigArgumentParser
-from bacpypes.core import run, enable_sleeping
+from bacpypes.core import enable_sleeping, run
 from bacpypes.local.device import LocalDeviceObject
 from django.db.models import Count
 from django.http import JsonResponse
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
 
 from .bacnet_client import DjangoBACnetClient, clear_all_devices
