@@ -1,14 +1,14 @@
 import logging
-
-from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Count
 import json
 import threading
 import time
 import sys
 import os
+
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Count
 
 from bacpypes.consolelogging import ConfigArgumentParser
 from bacpypes.local.device import LocalDeviceObject
@@ -47,9 +47,6 @@ def load_bacnet_config():
 
             logging.debug(f"✅ Configuration loaded:")
             logging.debug(f"   Device Name: {bacnet_config}")
-            # logging.debug(f"   Device ID: {bacnet_config.instance}")
-            # logging.debug(f"   Address: {bacnet_config.ini.address}")
-            # logging.debug(f"   Vendor ID: {bacnet_config.vendorid}")
 
         except Exception as e:
             logging.debug(f"Error loading BACnet configuration: {e}")
