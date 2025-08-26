@@ -34,6 +34,4 @@ urlpatterns = [
     ),
     path("api/clear-devices/", views.clear_devices, name="clear_devices"),
     path("api/devices/", views.device_list_api, name="device_list_api"),
-    path('api/test/', views.test_api, name='test_api'),
-    # path('api/debug/', views.debug_urls, name='debug_urls'),
 ]

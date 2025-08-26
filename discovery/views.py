@@ -200,10 +200,3 @@ def device_list_api(request):
     )
 
     return JsonResponse({"devices": list(devices), "count": len(devices)})
-
-def test_api(request):
-    return JsonResponse({
-        'message': 'API is working!',
-        'method': request.method,
-        'path': request.path
-    })
