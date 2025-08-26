@@ -140,7 +140,7 @@ def start_discovery(request):
                 {
                     "success": True,
                     "message": f"Device discovery started"
-                    f"- devices will appear in a few seconds",
+                    f" - devices will appear in a few seconds",
                 }
             )
         except Exception as e:
@@ -155,6 +155,7 @@ def start_discovery(request):
 def read_device_points(request, device_id):
     if request.method == "POST":
         try:
+            logging.debug(f"device_ID: {device_id}")
             device = get_object_or_404(BACnetDevice, device_id=device_id)
             client = ensure_bacnet_client()
             client.read_device_points(device.device_id)
@@ -199,3 +200,10 @@ def device_list_api(request):
     )
 
     return JsonResponse({"devices": list(devices), "count": len(devices)})
+
+def test_api(request):
+    return JsonResponse({
+        'message': 'API is working!',
+        'method': request.method,
+        'path': request.path
+    })

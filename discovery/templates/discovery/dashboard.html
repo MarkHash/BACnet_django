@@ -142,15 +142,15 @@
 
 {% block javascript %}
 <script>
-    documment.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('discover-btn').addEventListener('click', function() {
             const btn = this;
             const spinner = btn.querySelector('.spinner-border');
 
-            btn.dsabled = true;
+            btn.disabled = true;
             spinner.classList.remove('d-none');
 
-            apiCall('/api/start-discovery/', 'POST')
+            apiCall(`/api/start-discovery/`, 'POST')
                 .then(response => {
                     if (response.success) {
                         showAlert(response.message, 'success');
@@ -172,7 +172,7 @@
 
         document.getElementById('clear-btn').addEventListener('click', function() {
             if (confirm('Are you sure you want to clear all devices? This cannot be undone.')) {
-                apiCall('/api/clear-devices/', 'POST')
+                apiCall(`/api/clear-devices/`, 'POST')
                     .then(response => {
                         if (response.success) {
                             showAlert(response.message, 'success');
@@ -196,7 +196,7 @@
                 this.disabled = true;
                 this.innerHTML = '⏳ Reading...';
 
-                apiCall('/api/read-points/${deviceId}/', 'POST')
+                apiCall(`/api/read-points/${deviceId}/`, 'POST')
                     .then(response => {
                         if (response.success) {
                             showAlert(response.message, 'success');

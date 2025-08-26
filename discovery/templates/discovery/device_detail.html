@@ -1,0 +1,260 @@
+{% extends 'discovery/base.html' %}
+
+{% block title %}Device {{ device.device_id }} - BACnet Discovery{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrum-item"><a href="{% url 'discovery:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrum-item active">Device {{ device.device_id }}</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h2>
+                            <span class="online-indicaator {% if device.is_online %}online{% else %}offline{% endif %}"></span>
+                            Device {{ device.device_id }}
+                        </h2>
+                        <p class="text-muted mb-0">{{ device.address }}</p>
+                    </div>
+                    <div class="text-end">
+                        <button id="read-poionts-btn" class="btn btn-success btn-lg">
+                            <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            📖 Read Points
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4>{{ device.vendor_id }}</h4>
+                <p class="text-muted">Vendor ID</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4>{{ point_count }}</h4>
+                <p class="text-muted">Total Points</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4>{% if device.is_online %}Online{% else %}Offline{% endif %}</h4>
+                <p class="text-muted">Status</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4>{{ device.first_seen|date:"M d" }}</h4>
+                <p class="text-muted">First Seen</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if points %}
+    {% if points_by_type %}
+    <div class="row">
+        {% for object_type, type_points in points_by_type.items %}
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                    <h6>{{ object_type|title }}</h6>
+                    <span class="badge bg-secondary">{{ type_points|length }}</span>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <div class="table-responsive">
+                        <table class="table-responsive">
+                            <thread>
+                                <tr>
+                                    <th>Instance</th>
+                                    <th>Identifier</th>
+                                    <th>Name</th>
+                                </tr>
+                            </thread>
+                            <tbody>
+                                {% for point in type_points %}
+                                <tr>
+                                    <td><code>{{ point.instance_number }}</code></td>
+                                    <td><strong>{{ point.identifier }}</strong></td>
+                                    <td>
+                                        {% if point.object_name %}
+                                            {{ point.object_name }}
+                                        {% else %}
+                                            <em class="text-muted">No name</em>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row mt-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5>All Points ({{ point_count }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thread>
+                                <tr>
+                                    <tr>Object Type</tr>
+                                    <tr>Instance</tr>
+                                    <tr>Identifier</tr>
+                                    <tr>Name</tr>
+                                    <tr>Description</tr>
+                                    <tr>Created</tr>
+                                </tr>
+                            </thread>
+                            <tbody>
+                                {% for point in points %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-primary">{{ point.object_type }}</span>
+                                    </td>
+                                    <td><code>{{ point.instance_number }}</code></td>
+                                    <td><strong>{{ point.identifier }}</strong></td>
+                                    <td>
+                                        {% if point.object_name %}
+                                            {{ point.object_name }}
+                                        {% else %}
+                                            <em class="text-muted">-</em>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if point.description %}
+                                            {{ point.description|truncatechars:50 }}
+                                        {% else %}
+                                            <em class="text-muted">-</em>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ point.created|date:"M d, H:i" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% else %}
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    {% if device.points_read %}
+                        <div class="mb-3">
+                            <i class="fas fa-exclamation-triangle" stype="font-size: 3rem; color: #ffc107"></i>
+                        </div>
+                        <h5 class="text-muted">No Points Found</h5>
+                        <p class="text-muted">This device has no BACnet objects or they couldn't be read.</p>
+                    {% else %}
+                        <div class="mb-3">
+                            <i class="fas fa-book-open" stype="font-size: 3rem; color: #ccc;"></i>
+                        </div>
+                        <h5 class="text-muted">Points Not Read yet</h5>
+                        <p class="text-muted">Click "Read Points" to discover the BACnet objects in this device.</p>
+                        <button class="btn btn-success btn-ln" onclick="document.getElementById('read-points-btn').click()">
+                            📖 Read Points Now
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h6>Device Actions</h6>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-outline-primary me-2">
+                    🔄 Refresh Device Info
+                </button>
+                <button class="btn btn-outline-warning me-2" onclick="if(confirm('Remove this device?')) alert('Feature coming soon!')">
+                    🗑️ Remove Device
+                </button>
+                <a href="{% url 'discovery:dashboard' %}" class="btn btn-outline-secondary">
+                    ← Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('read-points-btn').addEventListener('click', function() {
+            const btn = this;
+            const spinner = btn.querySelector('.spinner-border');
+            const originalText = btn.innerHTML;
+
+            // const deviceId = {{ device.device_id }};
+            // const url = `/api/read-points/${deviceId}/`;
+            // console.log('Device ID:', deviceId);
+            // console.log('Calling URL:', url);
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Reading Points...';
+
+            apiCall(`/api/read-points/{{ device.device_id }}/`, 'POST')
+                .then(response => {
+                    if (response.success) {
+                        showAlert(response.message, 'success');
+                        showAlert('Page will refresh in 5 seconds to show discovered points...', 'info');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 5000);
+                    } else {
+                        showAlert(response.message, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error reading points', 'danger');
+                })
+                .finally(() => {
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        spinner.classList.add('d-none');
+                        btn.innerHTML = originalText;
+                    }, 2000);
+                });
+            });
+        });
+</script>
+{% endblock %}
