@@ -82,6 +82,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
             if iocb.ioResponse:
                 apdu = iocb.ioResponse
                 device_address = str(apdu.pduSource)
+                logger.debug(f"APDU: {apdu}")
 
                 try:
                     device = BACnetDevice.objects.get(address=device_address)
@@ -159,7 +160,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
 
     def _save_points_to_database(self, device, points):
         for point_data in points:
-            logging.debug(f"point_data: {point_data}")
+            logger.debug(f"point_data: {point_data}")
             point, created = BACnetPoint.objects.get_or_create(
                 device=device,
                 object_type=point_data["type"],

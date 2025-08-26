@@ -6,8 +6,8 @@
 
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrum-item"><a href="{% url 'discovery:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrum-item active">Device {{ device.device_id }}</li>
+        <li class="breadcrumb-item"><a href="{% url 'discovery:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Device {{ device.device_id }}</li>
     </ol>
 </nav>
 
@@ -96,8 +96,8 @@
                                     <td><code>{{ point.instance_number }}</code></td>
                                     <td><strong>{{ point.identifier }}</strong></td>
                                     <td>
-                                        {% if point.object_name %}
-                                            {{ point.object_name }}
+                                        {% if point.object_type %}
+                                            {{ point.object_type }}
                                         {% else %}
                                             <em class="text-muted">No name</em>
                                         {% endif %}

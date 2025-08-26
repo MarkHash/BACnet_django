@@ -31,11 +31,11 @@ def load_bacnet_config():
     global bacnet_config
     if bacnet_config is None:
         try:
-            logging.debug("Loading BAcnet configuration from BACpypes.ini...")
+            logger.debug("Loading BAcnet configuration from BACpypes.ini...")
             original_argv = sys.argv.copy()
             ini_path = "./discovery/BACpypes.ini"
             if not os.path.exists(ini_path):
-                logging.debug(f"{ini_path} not found in current directory")
+                logger.debug(f"{ini_path} not found in current directory")
                 return None
             sys.argv = ["django_bacnet", "--ini", ini_path]
             args = ConfigArgumentParser(
@@ -44,11 +44,11 @@ def load_bacnet_config():
             bacnet_config = args.ini
             sys.argv = original_argv
 
-            logging.debug(f"✅ Configuration loaded:")
-            logging.debug(f"   Device Name: {bacnet_config}")
+            logger.debug(f"✅ Configuration loaded:")
+            logger.debug(f"   Device Name: {bacnet_config}")
 
         except Exception as e:
-            logging.debug(f"Error loading BACnet configuration: {e}")
+            logger.debug(f"Error loading BACnet configuration: {e}")
             sys.argv = original_argv
             bacnet_config = None
 
@@ -94,7 +94,7 @@ def ensure_bacnet_client():
     global bacnet_client
 
     if bacnet_client is None:
-        logging.debug("Creating BACnet client...")
+        logger.debug("Creating BACnet client...")
 
         # args = ConfigArgumentParser(description=__doc__).parse_args()
         config = load_bacnet_config()
@@ -108,12 +108,12 @@ def ensure_bacnet_client():
             segmentationSupported=config.segmentationsupported,
             vendorIdentifier=int(config.vendoridentifier),
         )
-        logging.debug(f"Workstation info: {device}")
+        logger.debug(f"Workstation info: {device}")
 
         LOCAL_IP = config.address
 
         def callback(event_type, data):
-            logging.debug(f"BACnet event: {event_type} = {data}")
+            logger.debug(f"BACnet event: {event_type} = {data}")
 
         bacnet_client = DjangoBACnetClient(callback, device, LOCAL_IP)
 
@@ -125,7 +125,7 @@ def ensure_bacnet_client():
         bacnet_thread.daemon = True
         bacnet_thread.start()
 
-        logging.debug("BACnet client started!")
+        logger.debug("BACnet client started!")
     return bacnet_client
 
 
@@ -155,7 +155,7 @@ def start_discovery(request):
 def read_device_points(request, device_id):
     if request.method == "POST":
         try:
-            logging.debug(f"device_ID: {device_id}")
+            logger.debug(f"device_ID: {device_id}")
             device = get_object_or_404(BACnetDevice, device_id=device_id)
             client = ensure_bacnet_client()
             client.read_device_points(device.device_id)

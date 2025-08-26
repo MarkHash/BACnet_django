@@ -28,7 +28,7 @@ urlpatterns = [
     path("device/<int:device_id>/", views.device_detail, name="device_detail"),
     path("api/start-discovery/", views.start_discovery, name="start_discovery"),
     path(
-        "api/read-poits/<int:device_id>/",
+        "api/read-points/<int:device_id>/",
         views.read_device_points,
         name="read_device_points",
     ),
