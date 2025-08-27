@@ -163,7 +163,7 @@ class BACnetReading(models.Model):
 
     def __str__(self):
         msg = f"""
-        {self.point.identifier}: {self.value} {self.units} 
+        {self.point.identifier}: {self.value} {self.units}
         at {self.read_time.strftime('%H:%M:%S')}
         """
         return msg
