@@ -8,9 +8,9 @@ from bacpypes.constructeddata import ArrayOf
 from bacpypes.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes.iocb import IOCB
 from bacpypes.pdu import Address, GlobalBroadcast
-from bacpypes.primitivedata import ObjectIdentifier
+from bacpypes.primitivedata import ObjectIdentifier, Real, Unsigned, Integer
 
-from .models import BACnetDevice, BACnetPoint
+from .models import BACnetDevice, BACnetPoint, BACnetReading
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -19,8 +19,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 _debug = 0
 _log = ModuleLogger(globals())
-discovered_devices = {}
-device_points = {}
+# discovered_devices = {}
+# device_points = {}
 
 
 @bacpypes_debugging
@@ -57,7 +57,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 device.vendor_id = vendor_id
                 device.mark_seen()
 
-            logger.debug(f"Device {device_id} saved to database: {device.address}")
+            logger.debug(f"✓ Device {device_id} saved to database: {device.address}")
 
             if self.callback:
                 self.callback(
@@ -82,7 +82,6 @@ class DjangoBACnetClient(BIPSimpleApplication):
             if iocb.ioResponse:
                 apdu = iocb.ioResponse
                 device_address = str(apdu.pduSource)
-                logger.debug(f"APDU: {apdu}")
 
                 try:
                     device = BACnetDevice.objects.get(address=device_address)
@@ -91,6 +90,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                         f"ReadProperty response from unknown device: {device_address}"
                     )
                     return
+                print(f"+++{apdu.objectIdentifier[0]}, {apdu.propertyIdentifier}, {apdu.propertyValue}, {device.device_id}")
 
                 if (
                     apdu.objectIdentifier[0] == "device"
@@ -102,7 +102,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                     if points:
                         self._save_points_to_database(device, points)
                         logger.debug(
-                            f"Saved {len(points)} points for device{device.device_id}"
+                            f"✓ Saved {len(points)} points for device{device.device_id}"
                         )
 
                         if self.callback:
@@ -113,6 +113,15 @@ class DjangoBACnetClient(BIPSimpleApplication):
                                     "point_count": len(points),
                                 },
                             )
+                elif apdu.propertyIdentifier == 'presentValue':
+                    self._handle_present_value_response(apdu, device)
+                elif apdu.propertyIdentifier == 'objectName':
+                    print(f"apdu.propertyIdentifier == 'objectName'")
+                    self._handle_object_name_response(apdu, device)
+                elif apdu.propertyIdentifier == 'units':
+                    print(f"apdu.propertyIdentifier == 'units'")
+                    self._handle_units_response(apdu, device)
+
             elif iocb.ioError:
                 logger.error(f"ReadProperty error: {iocb.ioError}")
             else:
@@ -121,6 +130,140 @@ class DjangoBACnetClient(BIPSimpleApplication):
         except Exception as e:
             logger.error(f"Error processing ReadProperty response: {e}")
             traceback.print_exc()
+
+    def _handle_present_value_response(self, apdu, device):
+        try:
+            object_type = apdu.objectIdentifier[0]
+            instance_number = apdu.objectIdentifier[1]
+
+            point = BACnetPoint.objects.get(
+                device=device,
+                object_type=object_type,
+                instance_number=instance_number
+            )
+
+            if apdu.propertyValue.__class__.__name__ == 'Any':
+                present_value = apdu.propertyValue.cast_out(Real)
+            else:
+                present_value = apdu.propertyValue.cast_out(Unsinged)
+            print(f"Present_value: {present_value}, object_type: {object_type}")
+
+            point.update_value(present_value)
+            BACnetReading.objects.create(
+                point=point,
+                value=str(present_value)
+            )
+
+            logger.debug(f"✓ Updated {point.identifier} - {present_value}")
+
+            if self.callback:
+                self.callback('value_read', {
+                    'point_id': point.id,
+                    'identifier': point.identifier,
+                    'value': present_value
+                })
+        except BACnetPoint.DoesNotExist:
+            logger.debug(f"Point not found for value response: {object_type}: {instance_number}")
+        except Exception as e:
+            logger.debug(f"Error handling present value: {e}")
+    
+    def _handle_object_name_response(self, apdu, device):
+        try:
+            object_type = apdu.objectIdentifier[0]
+            instance_number = apdu.objectIdentifier[1]
+
+            point = BACnetPoint.objects.get(
+                device=device,
+                object_type=object_type,
+                instance_number=instance_number
+            )
+
+            print(f"object_name: {apdu.propertyValue}")
+
+            object_name = str(apdu.propertyValue)
+            point.object_name = object_name
+            point.save()
+
+            logger.debug(f"✓ Updated name for {point.identifier}: {object_name}")
+
+        except Exception as e:
+            logger.debug(f"Error handling object name: {e}")
+
+    def _handle_units_response(self, apdu, device):
+        try:
+            object_type = apdu.objectIdentifier[0]
+            instance_number = apdu.objectIdentifier[1]
+
+            point = BACnetPoint.objects.get(
+                device=device,
+                object_type=object_type,
+                instance_number=instance_number
+            )
+
+            units = str(apdu.propertyValue)
+            point.units = units
+            point.save()
+            logger.debug(f"✓ Updated units for {point.identifier}: {units}")
+
+        except Exception as e:
+            logger.debug(f"Error handling units: {e}")
+
+    def read_point_value(self, device_id, object_type, instance_number, property_name='presentValue'):
+        try:
+            device = BACnetDevice.objects.get(device_id=device_id)
+            device_address = Address(device.address)
+
+            request = ReadPropertyRequest(
+                objectIdentifier=(object_type, instance_number),
+                propertyIdentifier=property_name
+            )
+            request.pduDestination = device_address
+
+            iocb = IOCB(request)
+            self.request_io(iocb)
+            iocb.add_callback(self.process_read_response)
+
+            logger.debug(f"✓ Reading {property_name} from {object_type}:{instance_number} on device {device_id}")
+        except BACnetDevice.DoesNotExist:
+            logger.debug(f"Device {device_id} not found")
+        except Exception as e:
+            logger.debug(f"Error reading point value: {e}")
+
+    def read_all_point_values(self, device_id):
+        try:
+            device = BACnetDevice.objects.get(device_id=device_id)
+            readable_points = device.points.filter(object_type__in=[
+            'analogInput',
+            'analogOutput',
+            'analogValue',
+            'binaryInput',
+            'binaryOutput',
+            'binaryValue',
+            'multiStateInput',
+            'multiStateOutput',
+            'multiStateValue',
+            ])
+            logger.debug(f"✓ Reading values from {readable_points.count()} points on device {device_id}")
+            
+            for point in readable_points:
+                self.read_point_value(device_id, point.object_type, point.instance_number, 'presentValue')
+
+                if not point.object_name:
+                    self.read_point_value(device_id, point.object_type, point.instance_number, 'objectName')
+                if not point.units and point.object_type.startswith('analog'):
+                    self.read_point_value(device_id, point.object_type, point.instance_number, 'units')
+            
+            if self.callback:
+                self.callback('reading_values', {
+                    'device_id': device_id,
+                    'point_count': readable_points.count()
+                })
+
+        except BACnetDevice.DoesNotExist:
+            logger.debug(f"Device {device_id} not found")
+        except Exception as e:
+            logger.debug(f"Error reading point value: {e}")
+
 
     def _parse_object_list(self, property_value, device_id):
         points = []
@@ -165,13 +308,15 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 device=device,
                 object_type=point_data["type"],
                 instance_number=point_data["instance"],
-                defaults={"identifier": point_data["identifier"]},
+                defaults={
+                    "identifier": point_data["identifier"]
+                    }
             )
 
             if created:
-                logger.debug(f"   Created point: {point.identifier}")
+                logger.debug(f"  ✓ Created point: {point.identifier}")
             else:
-                logger.debug(f"   Point exists: {point.identifier}")
+                logger.debug(f"  ○ Point exists: {point.identifier}")
 
         device.points_read = True
         device.save()
@@ -188,7 +333,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
 
             self.request(request)
             timestamp = datetime.now().strftime("%H:%M:%S")
-            logger.debug(f"Sent WhoIs broadcast at {timestamp}")
+            logger.debug(f"✓ Sent WhoIs broadcast at {timestamp}")
 
             if self.callback:
                 self.callback("whois_sent", timestamp)
@@ -196,7 +341,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
         except Exception as e:
             logger.error(f"Error sending WhoIs: {e}")
 
-    def read_device_points(self, device_id):
+    def read_device_objects(self, device_id):
         if _debug:
             DjangoBACnetClient._debug("read_device_objects %r", device_id)
 
@@ -212,7 +357,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
             iocb = IOCB(request)
             self.request_io(iocb)
             iocb.add_callback(self.process_read_response)
-            logger.debug(f"Reading object list from device {device_id}")
+            logger.debug(f"✓ Reading object list from device {device_id}")
 
         except BACnetDevice.DoesNotExist:
             logger.error(f"Device {device_id} not found in database")

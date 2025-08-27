@@ -12,6 +12,7 @@ from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 
 from .bacnet_client import DjangoBACnetClient, clear_all_devices
 from .models import BACnetDevice, BACnetPoint
@@ -94,7 +95,7 @@ def ensure_bacnet_client():
     global bacnet_client
 
     if bacnet_client is None:
-        logger.debug("Creating BACnet client...")
+        logger.debug("🔧 Creating BACnet client...")
 
         # args = ConfigArgumentParser(description=__doc__).parse_args()
         config = load_bacnet_config()
@@ -108,24 +109,21 @@ def ensure_bacnet_client():
             segmentationSupported=config.segmentationsupported,
             vendorIdentifier=int(config.vendoridentifier),
         )
-        logger.debug(f"Workstation info: {device}")
-
-        LOCAL_IP = config.address
+        logger.debug(f"📡 Creating BACnet client with address: {config.address}")
 
         def callback(event_type, data):
-            logger.debug(f"BACnet event: {event_type} = {data}")
+            logger.debug(f"BACnet event: {event_type} - {data}")
 
-        bacnet_client = DjangoBACnetClient(callback, device, LOCAL_IP)
+        bacnet_client = DjangoBACnetClient(callback, device, config.address)
 
         def run_bacnet():
             enable_sleeping()
             run()
 
-        bacnet_thread = threading.Thread(target=run_bacnet)
-        bacnet_thread.daemon = True
+        bacnet_thread = threading.Thread(target=run_bacnet, daemon=True)
         bacnet_thread.start()
 
-        logger.debug("BACnet client started!")
+        logger.debug("✅ BACnet client started!")
     return bacnet_client
 
 
@@ -134,6 +132,7 @@ def start_discovery(request):
     if request.method == "POST":
         try:
             client = ensure_bacnet_client()
+            logger.debug("ensure_bacnet_client")
             client.send_whois()
 
             return JsonResponse(
@@ -158,7 +157,7 @@ def read_device_points(request, device_id):
             logger.debug(f"device_ID: {device_id}")
             device = get_object_or_404(BACnetDevice, device_id=device_id)
             client = ensure_bacnet_client()
-            client.read_device_points(device.device_id)
+            client.read_device_objects(device.device_id)
 
             return JsonResponse(
                 {
@@ -173,6 +172,114 @@ def read_device_points(request, device_id):
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
+@csrf_exempt
+def read_point_values(request, device_id):
+    if request.method == "POST":
+        try:
+            device = get_object_or_404(BACnetDevice, device_id=device_id)
+            client = ensure_bacnet_client()
+
+            client.read_all_point_values(device.device_id)
+
+            return JsonResponse({
+                    "success": True,
+                    "message": f"Started reading sensor values for device {device.device_id}",
+                })
+        except Exception as e:
+            return JsonResponse({
+                "success": False,
+                "message": f"Error reading values: {str(e)}"
+                })
+
+    return JsonResponse({"success": False, "message": "Invalid request"}) 
+
+@csrf_exempt
+def read_single_point_value(request, device_id, object_type, instance_number):
+    if request.method == "POST":
+        try:
+            device = get_object_or_404(BACnetDevice, device_id=device_id)
+            client = ensure_bacnet_client()
+
+            client.read_point_value(device_id, object_type, instance_number)
+
+            return JsonResponse({
+                    "success": True,
+                    "message": f"Reading values from {object_type}:{instance_number}",
+                })
+        except Exception as e:
+            return JsonResponse({
+                "success": False,
+                "message": f"Error reading values: {str(e)}"
+                })
+
+    return JsonResponse({"success": False, "message": "Invalid request"}) 
+
+def get_device_value_api(request, device_id):
+    try:
+        device = get_object_or_404(BACnetDevice, device_id=device_id)
+        points_data = []
+        for point in device.points.all().order_by('object_type', 'instance_number'):
+            point_data = {
+                'id': point.id,
+                'identifier': point.identifier,
+                'object_type' :point.object_type,
+                'instance_number': point.instance_number,
+                'object_name': point.object_name or '',
+                'present_value': point.present_value or '',
+                'units': point.units or '',
+                'display_value': point.get_display_value(),
+                'value_last_read': point.value_last_read.isoformat() if point.value_last_read else None,
+                'is_readable': point.is_readable,
+                'data_type': point.data_type or '',
+            }
+            points_data.append(point_data)
+
+        return JsonResponse({
+            'success': True,
+            'device_id': device.device_id,
+            'points': points_data,
+            'total_points': len(points_data),
+            'readable_points': len([p for p in points_data if p['is_readable']]),
+            'last_updated': timezone.now().isoformat()
+        })
+    
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error getting device values: {str(e)}'
+        })
+
+def get_point_history_api(request, point_id):
+    try:
+        fpoint = get_object_or_404(BACnetPoint, id=point_id)
+
+        readings = point.readings.all()[:50]
+        readings_data = []
+        for reading in readings:
+            readings.append({
+            'value': reading.value,
+            'units': reading.units,
+            'display_value': reading.get_display_value(),
+            'read_time': reading.read_time.isoformat(),
+            'quality': reading.quality or 'unknown'
+            })
+
+        return JsonResponse({
+            'success': True,
+            'point': {
+                'id': point.id,
+                'identifier': point.identifier,
+                'object_name': point.object_name,
+                'current_value': point.get_display_value()
+            },
+            'readings': readings_data,
+            'count': len(readings_data)
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error getting point history: {str(e)}'
+        })
 
 @csrf_exempt
 def clear_devices(request):
@@ -193,10 +300,56 @@ def clear_devices(request):
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
-
 def device_list_api(request):
     devices = BACnetDevice.objects.all().values(
         "device_id", "address", "vendor_id", "is_online", "last_seen", "points_read"
     )
 
     return JsonResponse({"devices": list(devices), "count": len(devices)})
+
+
+def debug_urls(request):
+    urls = {
+        'dashboard': reverse('discovery:dashboard'),
+        'device_detail_example': '/device/123123',
+        'start_discovery': reverse('discovery:start_discovery'),
+        'clear_devices': reverse('discovery:clear_devices'),
+        'device_list_api': reverse('discovery:device_list_api'),
+    }
+
+    try:
+        device = BACnetDevice.objects.first()
+        if device:
+            urls['device_detail_real'] = reverse('discovery:device_detail', args=[device.device_id])
+            urls['read_points_real'] = reverse('discovery:read_device_points', args=[device.device_id])
+        else:
+            urls['read_points_example'] = '/api/read-points/123123/'
+    except:
+        urls['read_points_example'] = '/api/read-points/123123'
+
+    return JsonResponse({
+        'available_urls': urls,
+        'method': request.method,
+        'path': request.path
+    })
+
+def config_info(request):
+    config = load_bacnet_config()
+    if config:
+        config_data = {
+            'device_name': config.name,
+            'device_id': config.instance,
+            'address': config.address,
+            'vendor_id': config.vendorid,
+            'max_apdu_length': config.maxpdulength,
+            'segmentation': config.segmentation,
+        }
+        return JsonResponse({
+            'success': True,
+            'config': config_data
+        })
+    else:
+        return JsonResponse({
+            'success': False,
+            'config': 'Could not load BACnet configuration'
+        })

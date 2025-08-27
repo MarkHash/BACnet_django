@@ -23,15 +23,17 @@ from . import views
 app_name = "discovery"
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    # path("admin/", admin.site.urls),
     path("", views.dashboard, name="dashboard"),
     path("device/<int:device_id>/", views.device_detail, name="device_detail"),
     path("api/start-discovery/", views.start_discovery, name="start_discovery"),
-    path(
-        "api/read-points/<int:device_id>/",
-        views.read_device_points,
-        name="read_device_points",
-    ),
+    path("api/read-points/<int:device_id>/", views.read_device_points, name="read_device_points"),
     path("api/clear-devices/", views.clear_devices, name="clear_devices"),
     path("api/devices/", views.device_list_api, name="device_list_api"),
+    path("api/config/", views.config_info, name="config_info"),
+    path("api/debug/", views.debug_urls, name="debug_urls"),
+    path("api/read-values/<int:device_id>/", views.read_point_values, name="read_point_values"),
+    path("api/read-point/<int:device_id>/<str:object_type>/<int:instance_number>/", views.read_single_point_value, name="read_single_point_value"),
+    path("api/device-values/<int:device_id>/", views.get_device_value_api, name="get_device_value_api"),
+    path("api/point-history/<int:point_id>/", views.get_point_history_api, name="get_point_history_api")
 ]
