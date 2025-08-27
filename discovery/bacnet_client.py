@@ -8,7 +8,7 @@ from bacpypes.constructeddata import ArrayOf
 from bacpypes.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes.iocb import IOCB
 from bacpypes.pdu import Address, GlobalBroadcast
-from bacpypes.primitivedata import ObjectIdentifier, Real, Unsigned
+from bacpypes.primitivedata import ObjectIdentifier, Real, Unsigned, CharacterString, Enumerated
 
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 
@@ -181,9 +181,10 @@ class DjangoBACnetClient(BIPSimpleApplication):
 
             print(f"object_name: {apdu.propertyValue}")
 
-            object_name = str(apdu.propertyValue)
-            point.object_name = object_name
-            point.save()
+            if apdu.propertyValue.__class__.__name__ == 'Any':
+                object_name = apdu.propertyValue.cast_out(CharacterString)
+                point.object_name = object_name
+                point.save()
 
             logger.debug(f"✓ Updated name for {point.identifier}: {object_name}")
 
@@ -199,13 +200,32 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 device=device, object_type=object_type, instance_number=instance_number
             )
 
-            units = str(apdu.propertyValue)
-            point.units = units
-            point.save()
+            if apdu.propertyValue.__class__.__name__ == 'Any':
+                # units = apdu.propertyValue.cast_out(CharacterString)
+                units_enum  = apdu.propertyValue.cast_out(Enumerated)
+                units_code = int(units_enum)
+                unit_text = self._convert_units_enum_to_text(units_code)
+                point.units = unit_text
+                point.save()
+
+            # units = str(apdu.propertyValue)
+            # point.units = units
+            # point.save()
             logger.debug(f"✓ Updated units for {point.identifier}: {units}")
 
         except Exception as e:
             logger.debug(f"Error handling units: {e}")
+
+    def _convert_units_enum_to_text(self, units_code):
+        units_map = {
+            95: "noUnits",
+            98: "degrees-kelvin",
+            62: "maxApduLengthAccepted",
+            87: "litersPerSecond",
+
+        }
+        # referenced from: https://github.com/JoelBender/bacpypes/blob/a7f2f41068aa06278602d3bf0cb9a3e16eeaf857/py25/bacpypes/basetypes.py#L539
+        return units_map.get(units_code, f"units-{units_code}")
 
     def read_point_value(
         self, device_id, object_type, instance_number, property_name="presentValue"
