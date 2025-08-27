@@ -8,7 +8,8 @@ from bacpypes.constructeddata import ArrayOf
 from bacpypes.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes.iocb import IOCB
 from bacpypes.pdu import Address, GlobalBroadcast
-from bacpypes.primitivedata import ObjectIdentifier, Real, Unsigned, CharacterString, Enumerated
+from bacpypes.primitivedata import (CharacterString, Enumerated,
+                                    ObjectIdentifier, Real, Unsigned)
 
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 
@@ -181,7 +182,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
 
             print(f"object_name: {apdu.propertyValue}")
 
-            if apdu.propertyValue.__class__.__name__ == 'Any':
+            if apdu.propertyValue.__class__.__name__ == "Any":
                 object_name = apdu.propertyValue.cast_out(CharacterString)
                 point.object_name = object_name
                 point.save()
@@ -200,9 +201,9 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 device=device, object_type=object_type, instance_number=instance_number
             )
 
-            if apdu.propertyValue.__class__.__name__ == 'Any':
+            if apdu.propertyValue.__class__.__name__ == "Any":
                 # units = apdu.propertyValue.cast_out(CharacterString)
-                units_enum  = apdu.propertyValue.cast_out(Enumerated)
+                units_enum = apdu.propertyValue.cast_out(Enumerated)
                 units_code = int(units_enum)
                 unit_text = self._convert_units_enum_to_text(units_code)
                 point.units = unit_text
@@ -222,7 +223,6 @@ class DjangoBACnetClient(BIPSimpleApplication):
             98: "degrees-kelvin",
             62: "maxApduLengthAccepted",
             87: "litersPerSecond",
-
         }
         # referenced from: https://github.com/JoelBender/bacpypes/blob/a7f2f41068aa06278602d3bf0cb9a3e16eeaf857/py25/bacpypes/basetypes.py#L539
         return units_map.get(units_code, f"units-{units_code}")
