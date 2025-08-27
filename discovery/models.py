@@ -47,25 +47,36 @@ class BACnetPoint(models.Model):
     )
     description = models.TextField(blank=True, help_text="Point description")
 
-    present_value = models.CharField(max_length=100, blank=True, help_text="Current sensor reading")
-    units = models.CharField(max_length=50, blank=True, help_text="Engineering units (°F, PSI, etc.)")
-    value_last_read = models.DateTimeField(null=True, blank=True, help_text="When value was last read")
+    present_value = models.CharField(
+        max_length=100, blank=True, help_text="Current sensor reading"
+    )
+    units = models.CharField(
+        max_length=50, blank=True, help_text="Engineering units (°F, PSI, etc.)"
+    )
+    value_last_read = models.DateTimeField(
+        null=True, blank=True, help_text="When value was last read"
+    )
 
     DATA_TYPE_CHOICES = [
-        ('real', 'Real (Float)'),
-        ('unsigned', 'Unsigned Integer'),
-        ('integer', 'Signed Integer'),
-        ('boolean', 'Boolean'),
-        ('enumerated', 'Enumerated'),
-        ('string', 'Character String'),
-        ('bitstring', 'Bit String'),
-        ('date', 'Date'),
-        ('time', 'Time'),
-        ('datetime', 'Date Time'),
-        ('null', 'Null'),
+        ("real", "Real (Float)"),
+        ("unsigned", "Unsigned Integer"),
+        ("integer", "Signed Integer"),
+        ("boolean", "Boolean"),
+        ("enumerated", "Enumerated"),
+        ("string", "Character String"),
+        ("bitstring", "Bit String"),
+        ("date", "Date"),
+        ("time", "Time"),
+        ("datetime", "Date Time"),
+        ("null", "Null"),
     ]
 
-    data_type = models.CharField(max_length=20, choices=DATA_TYPE_CHOICES, blank=True, help_text="BACnet data type")
+    data_type = models.CharField(
+        max_length=20,
+        choices=DATA_TYPE_CHOICES,
+        blank=True,
+        help_text="BACnet data type",
+    )
     created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -89,17 +100,19 @@ class BACnetPoint(models.Model):
     def get_display_value(self):
         if not self.present_value:
             return "No reading"
-        
+
         value = self.present_value
 
-        if self.data_type == 'real':
+        if self.data_type == "real":
             try:
                 float_val = float(value)
                 value = f"{float_val:.2f}"
             except ValueError:
                 pass
-        elif self.data_type == 'boolean':
-            value = "ON" if str(value).lower() in ['true', '1', 'on', 'active'] else "OFF"
+        elif self.data_type == "boolean":
+            value = (
+                "ON" if str(value).lower() in ["true", "1", "on", "active"] else "OFF"
+            )
 
         if self.units:
             return f"{value} {self.units}"
@@ -108,38 +121,44 @@ class BACnetPoint(models.Model):
     @property
     def is_readable(self):
         readable_types = [
-            'analogInput',
-            'analogOutput',
-            'analogValue',
-            'binaryInput',
-            'binaryOutput',
-            'binaryValue',
-            'multiStateInput',
-            'multiStateOutput',
-            'multiStateValue',
-            ]
+            "analogInput",
+            "analogOutput",
+            "analogValue",
+            "binaryInput",
+            "binaryOutput",
+            "binaryValue",
+            "multiStateInput",
+            "multiStateOutput",
+            "multiStateValue",
+        ]
         return self.object_type in readable_types
+
 
 class BACnetReading(models.Model):
     point = models.ForeignKey(
         BACnetPoint,
         on_delete=models.CASCADE,
-        related_name='readings',
-        help_text="Point this reading belongs to"
+        related_name="readings",
+        help_text="Point this reading belongs to",
     )
 
     value = models.CharField(max_length=100, help_text="Sensor reading value")
     units = models.CharField(max_length=50, blank=True, help_text="Engineering units")
-    read_time = models.DateTimeField(auto_now_add=True, help_text="When reading was taken")
+    read_time = models.DateTimeField(
+        auto_now_add=True, help_text="When reading was taken"
+    )
 
-    quality = models.CharField(max_length=50, blank=True, help_text="Reading quality (good, bad, uncertain)")
+    quality = models.CharField(
+        max_length=50, blank=True, help_text="Reading quality (good, bad, uncertain)"
+    )
     priority = models.IntegerField(null=True, blank=True, help_text="Reading priority")
 
     class Meta:
-        ordering = ['-read_time']
+        ordering = ["-read_time"]
         verbose_name = "BACnet Reading"
         verbose_name_plural = "BACnet Readings"
-        indexes = [models.Index(fields=['point', '-read_time']),
+        indexes = [
+            models.Index(fields=["point", "-read_time"]),
         ]
 
     def __str__(self):

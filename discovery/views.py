@@ -172,6 +172,7 @@ def read_device_points(request, device_id):
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
+
 @csrf_exempt
 def read_point_values(request, device_id):
     if request.method == "POST":
@@ -181,17 +182,19 @@ def read_point_values(request, device_id):
 
             client.read_all_point_values(device.device_id)
 
-            return JsonResponse({
+            return JsonResponse(
+                {
                     "success": True,
                     "message": f"Started reading sensor values for device {device.device_id}",
-                })
+                }
+            )
         except Exception as e:
-            return JsonResponse({
-                "success": False,
-                "message": f"Error reading values: {str(e)}"
-                })
+            return JsonResponse(
+                {"success": False, "message": f"Error reading values: {str(e)}"}
+            )
 
-    return JsonResponse({"success": False, "message": "Invalid request"}) 
+    return JsonResponse({"success": False, "message": "Invalid request"})
+
 
 @csrf_exempt
 def read_single_point_value(request, device_id, object_type, instance_number):
@@ -202,52 +205,58 @@ def read_single_point_value(request, device_id, object_type, instance_number):
 
             client.read_point_value(device_id, object_type, instance_number)
 
-            return JsonResponse({
+            return JsonResponse(
+                {
                     "success": True,
                     "message": f"Reading values from {object_type}:{instance_number}",
-                })
+                }
+            )
         except Exception as e:
-            return JsonResponse({
-                "success": False,
-                "message": f"Error reading values: {str(e)}"
-                })
+            return JsonResponse(
+                {"success": False, "message": f"Error reading values: {str(e)}"}
+            )
 
-    return JsonResponse({"success": False, "message": "Invalid request"}) 
+    return JsonResponse({"success": False, "message": "Invalid request"})
+
 
 def get_device_value_api(request, device_id):
     try:
         device = get_object_or_404(BACnetDevice, device_id=device_id)
         points_data = []
-        for point in device.points.all().order_by('object_type', 'instance_number'):
+        for point in device.points.all().order_by("object_type", "instance_number"):
             point_data = {
-                'id': point.id,
-                'identifier': point.identifier,
-                'object_type' :point.object_type,
-                'instance_number': point.instance_number,
-                'object_name': point.object_name or '',
-                'present_value': point.present_value or '',
-                'units': point.units or '',
-                'display_value': point.get_display_value(),
-                'value_last_read': point.value_last_read.isoformat() if point.value_last_read else None,
-                'is_readable': point.is_readable,
-                'data_type': point.data_type or '',
+                "id": point.id,
+                "identifier": point.identifier,
+                "object_type": point.object_type,
+                "instance_number": point.instance_number,
+                "object_name": point.object_name or "",
+                "present_value": point.present_value or "",
+                "units": point.units or "",
+                "display_value": point.get_display_value(),
+                "value_last_read": (
+                    point.value_last_read.isoformat() if point.value_last_read else None
+                ),
+                "is_readable": point.is_readable,
+                "data_type": point.data_type or "",
             }
             points_data.append(point_data)
 
-        return JsonResponse({
-            'success': True,
-            'device_id': device.device_id,
-            'points': points_data,
-            'total_points': len(points_data),
-            'readable_points': len([p for p in points_data if p['is_readable']]),
-            'last_updated': timezone.now().isoformat()
-        })
-    
+        return JsonResponse(
+            {
+                "success": True,
+                "device_id": device.device_id,
+                "points": points_data,
+                "total_points": len(points_data),
+                "readable_points": len([p for p in points_data if p["is_readable"]]),
+                "last_updated": timezone.now().isoformat(),
+            }
+        )
+
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error getting device values: {str(e)}'
-        })
+        return JsonResponse(
+            {"success": False, "message": f"Error getting device values: {str(e)}"}
+        )
+
 
 def get_point_history_api(request, point_id):
     try:
@@ -256,30 +265,34 @@ def get_point_history_api(request, point_id):
         readings = point.readings.all()[:50]
         readings_data = []
         for reading in readings:
-            readings.append({
-            'value': reading.value,
-            'units': reading.units,
-            'display_value': reading.get_display_value(),
-            'read_time': reading.read_time.isoformat(),
-            'quality': reading.quality or 'unknown'
-            })
+            readings.append(
+                {
+                    "value": reading.value,
+                    "units": reading.units,
+                    "display_value": reading.get_display_value(),
+                    "read_time": reading.read_time.isoformat(),
+                    "quality": reading.quality or "unknown",
+                }
+            )
 
-        return JsonResponse({
-            'success': True,
-            'point': {
-                'id': point.id,
-                'identifier': point.identifier,
-                'object_name': point.object_name,
-                'current_value': point.get_display_value()
-            },
-            'readings': readings_data,
-            'count': len(readings_data)
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "point": {
+                    "id": point.id,
+                    "identifier": point.identifier,
+                    "object_name": point.object_name,
+                    "current_value": point.get_display_value(),
+                },
+                "readings": readings_data,
+                "count": len(readings_data),
+            }
+        )
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error getting point history: {str(e)}'
-        })
+        return JsonResponse(
+            {"success": False, "message": f"Error getting point history: {str(e)}"}
+        )
+
 
 @csrf_exempt
 def clear_devices(request):
@@ -300,6 +313,7 @@ def clear_devices(request):
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
+
 def device_list_api(request):
     devices = BACnetDevice.objects.all().values(
         "device_id", "address", "vendor_id", "is_online", "last_seen", "points_read"
@@ -310,46 +324,45 @@ def device_list_api(request):
 
 def debug_urls(request):
     urls = {
-        'dashboard': reverse('discovery:dashboard'),
-        'device_detail_example': '/device/123123',
-        'start_discovery': reverse('discovery:start_discovery'),
-        'clear_devices': reverse('discovery:clear_devices'),
-        'device_list_api': reverse('discovery:device_list_api'),
+        "dashboard": reverse("discovery:dashboard"),
+        "device_detail_example": "/device/123123",
+        "start_discovery": reverse("discovery:start_discovery"),
+        "clear_devices": reverse("discovery:clear_devices"),
+        "device_list_api": reverse("discovery:device_list_api"),
     }
 
     try:
         device = BACnetDevice.objects.first()
         if device:
-            urls['device_detail_real'] = reverse('discovery:device_detail', args=[device.device_id])
-            urls['read_points_real'] = reverse('discovery:read_device_points', args=[device.device_id])
+            urls["device_detail_real"] = reverse(
+                "discovery:device_detail", args=[device.device_id]
+            )
+            urls["read_points_real"] = reverse(
+                "discovery:read_device_points", args=[device.device_id]
+            )
         else:
-            urls['read_points_example'] = '/api/read-points/123123/'
+            urls["read_points_example"] = "/api/read-points/123123/"
     except:
-        urls['read_points_example'] = '/api/read-points/123123'
+        urls["read_points_example"] = "/api/read-points/123123"
 
-    return JsonResponse({
-        'available_urls': urls,
-        'method': request.method,
-        'path': request.path
-    })
+    return JsonResponse(
+        {"available_urls": urls, "method": request.method, "path": request.path}
+    )
+
 
 def config_info(request):
     config = load_bacnet_config()
     if config:
         config_data = {
-            'device_name': config.name,
-            'device_id': config.instance,
-            'address': config.address,
-            'vendor_id': config.vendorid,
-            'max_apdu_length': config.maxpdulength,
-            'segmentation': config.segmentation,
+            "device_name": config.name,
+            "device_id": config.instance,
+            "address": config.address,
+            "vendor_id": config.vendorid,
+            "max_apdu_length": config.maxpdulength,
+            "segmentation": config.segmentation,
         }
-        return JsonResponse({
-            'success': True,
-            'config': config_data
-        })
+        return JsonResponse({"success": True, "config": config_data})
     else:
-        return JsonResponse({
-            'success': False,
-            'config': 'Could not load BACnet configuration'
-        })
+        return JsonResponse(
+            {"success": False, "config": "Could not load BACnet configuration"}
+        )
