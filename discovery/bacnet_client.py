@@ -13,7 +13,7 @@ from bacpypes.primitivedata import (
     Enumerated,
     ObjectIdentifier,
     Real,
-    Unsigned
+    Unsigned,
 )
 
 from .models import BACnetDevice, BACnetPoint, BACnetReading
