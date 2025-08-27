@@ -91,7 +91,8 @@ class DjangoBACnetClient(BIPSimpleApplication):
                     )
                     return
                 print(
-                    f"+++{apdu.objectIdentifier[0]}, {apdu.propertyIdentifier}, {apdu.propertyValue}, {device.device_id}"
+                    f"+++{apdu.objectIdentifier[0]}, {apdu.propertyIdentifier},"
+                    f" {apdu.propertyValue}, {device.device_id}"
                 )
 
                 if (

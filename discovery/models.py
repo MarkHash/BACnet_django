@@ -162,7 +162,11 @@ class BACnetReading(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.point.identifier}: {self.value} {self.units} at {self.read_time.strftime('%H:%M:%S')}"
+        msg = f"""
+        {self.point.identifier}: {self.value} {self.units} 
+        at {self.read_time.strftime('%H:%M:%S')}
+        """
+        return msg
 
     def get_display_value(self):
         if self.units:
