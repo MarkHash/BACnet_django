@@ -8,7 +8,7 @@ from bacpypes.constructeddata import ArrayOf
 from bacpypes.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes.iocb import IOCB
 from bacpypes.pdu import Address, GlobalBroadcast
-from bacpypes.primitivedata import Integer, ObjectIdentifier, Real, Unsigned
+from bacpypes.primitivedata import ObjectIdentifier, Real, Unsigned
 
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 
@@ -118,10 +118,10 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 elif apdu.propertyIdentifier == "presentValue":
                     self._handle_present_value_response(apdu, device)
                 elif apdu.propertyIdentifier == "objectName":
-                    print(f"apdu.propertyIdentifier == 'objectName'")
+                    print("apdu.propertyIdentifier == 'objectName'")
                     self._handle_object_name_response(apdu, device)
                 elif apdu.propertyIdentifier == "units":
-                    print(f"apdu.propertyIdentifier == 'units'")
+                    print("apdu.propertyIdentifier == 'units'")
                     self._handle_units_response(apdu, device)
 
             elif iocb.ioError:
@@ -145,7 +145,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
             if apdu.propertyValue.__class__.__name__ == "Any":
                 present_value = apdu.propertyValue.cast_out(Real)
             else:
-                present_value = apdu.propertyValue.cast_out(Unsinged)
+                present_value = apdu.propertyValue.cast_out(Unsigned)
             print(f"Present_value: {present_value}, object_type: {object_type}")
 
             point.update_value(present_value)
@@ -224,7 +224,8 @@ class DjangoBACnetClient(BIPSimpleApplication):
             iocb.add_callback(self.process_read_response)
 
             logger.debug(
-                f"✓ Reading {property_name} from {object_type}:{instance_number} on device {device_id}"
+                f"✓ Reading {property_name} from {object_type}"
+                f":{instance_number} on device {device_id}"
             )
         except BACnetDevice.DoesNotExist:
             logger.debug(f"Device {device_id} not found")
@@ -248,7 +249,8 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 ]
             )
             logger.debug(
-                f"✓ Reading values from {readable_points.count()} points on device {device_id}"
+                f"✓ Reading values from {readable_points.count()}"
+                f" points on device {device_id}"
             )
 
             for point in readable_points:
