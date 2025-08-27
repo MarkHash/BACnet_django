@@ -11,8 +11,8 @@ from bacpypes.local.device import LocalDeviceObject
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
-from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 
 from .bacnet_client import DjangoBACnetClient, clear_all_devices
 from .models import BACnetDevice, BACnetPoint

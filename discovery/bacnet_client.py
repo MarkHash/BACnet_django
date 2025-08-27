@@ -8,7 +8,7 @@ from bacpypes.constructeddata import ArrayOf
 from bacpypes.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes.iocb import IOCB
 from bacpypes.pdu import Address, GlobalBroadcast
-from bacpypes.primitivedata import ObjectIdentifier, Real, Unsigned, Integer
+from bacpypes.primitivedata import Integer, ObjectIdentifier, Real, Unsigned
 
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 
