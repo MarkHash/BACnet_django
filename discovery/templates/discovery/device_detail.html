@@ -109,10 +109,11 @@
                                             {% if point.present_value %}
                                                 <h4 class="text-primary">{{ point.get_display_value }}</h4>
                                             {% else %}
-                                                <h4 class="text-muted">No reading</h4>
+                                                <h4 class="text-muted">-</h4>
                                             {% endif %}
                                         </div>
-                                        <small class="text-muted">{{ point.object_type|capfirst }}</small>
+                                        <small class="text-muted">{{ point.object_type|capfirst }} {{ point.instance_number }}</small>
+                                        <!-- <small class="text-muted">{{ point.instance_number }}</small> -->
                                         <br>
                                         <button class="btn btn-sm btn-outline-primary mt2 read-single-point"
                                                 data-device-id="{{ device.device_id }}"
@@ -420,15 +421,31 @@
 
         function updateSensorDisplay(points) {
             points.forEach(point => {
-                const pointCard = document.querySelector(`[data-point-id="${point.id}"] .sensor-value h4`);
-                if (pointCard) {
-                    if (point.present_value) {
-                        pointCard.textContent = point.display_value;
-                        pointCard.className = 'text-primary';
-                    } else {
-                        pointCard.textContent = 'No reading';
-                        pointCard.className = 'text-muted'
+                const row = document.querySelector(`tr[data-point-id="${point.id}"]`);
+                if (row) {
+                    const valueCell = row.querySelector('.sensor-value');
+                    if (valueCell) {
+                        if (point.display_value) {
+                            valueCell.textContent = point.display_value;
+                            valueCell.className = 'text-primary';
+                        } else {
+                            valueCell.textContent = '-';
+                            valueCell.className = 'text-muted'
+                        }
+
                     }
+
+                    const nameCell = row.querySelector('.card-title');
+                    if (nameCell) {
+                            if (point.object_name && point.object_name.trim()) {
+                                nameCell.textContent = point.object_name;
+                                nameCell.className = 'text-primary';
+                            } else {
+                                nameCell.textContent = '-';
+                                nameCell.className = 'text-muted'
+                            }
+
+                        }
                 }
             });
             showAlert('Sensor values refreshed!', 'success');
