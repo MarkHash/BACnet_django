@@ -15,6 +15,7 @@ from bacpypes.primitivedata import (
     Real,
     Unsigned,
 )
+from bacpypes.basetypes import EngineeringUnits
 
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 
@@ -153,7 +154,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 present_value = apdu.propertyValue.cast_out(Real)
             else:
                 present_value = apdu.propertyValue.cast_out(Unsigned)
-            print(f"Present_value: {present_value}, object_type: {object_type}")
+            print(f"Present_value: {present_value}, object_type: {object_type}, data_type:{apdu.propertyValue.__class__.__name__}")
 
             point.update_value(present_value)
             BACnetReading.objects.create(point=point, value=str(present_value))
@@ -207,14 +208,14 @@ class DjangoBACnetClient(BIPSimpleApplication):
             )
 
             if apdu.propertyValue.__class__.__name__ == "Any":
-                # units = apdu.propertyValue.cast_out(CharacterString)
                 units_enum = apdu.propertyValue.cast_out(Enumerated)
                 units_code = int(units_enum)
                 unit_text = self._convert_units_enum_to_text(units_code)
                 point.units = unit_text
                 point.save()
             else:
-                point.units = str(apdu.propertyValue)
+                unit_text = self._convert_units_enum_to_text(int(apdu.propertyValue))
+                point.units = unit_text
                 point.save()
 
             logger.debug(f"✓ Updated units for {point.identifier}: {point.units}")
@@ -223,14 +224,32 @@ class DjangoBACnetClient(BIPSimpleApplication):
             logger.debug(f"Error handling units: {e}")
 
     def _convert_units_enum_to_text(self, units_code):
-        units_map = {
-            95: "noUnits",
-            98: "degrees-kelvin",
-            62: "maxApduLengthAccepted",
-            87: "litersPerSecond",
-        }
-        # referenced from: py25/bacpypes/basetypes.py
-        return units_map.get(units_code, f"units-{units_code}")
+        try:
+            engineering_unit = EngineeringUnits(units_code)
+            logger.debug(f"engineering_unit: {engineering_unit}")
+            unit_name = str(engineering_unit).split('(')[1].rstrip(')')
+
+            unit_conversions = {
+            'percent': '%',
+            'degreesCelsius': '°C',
+            'degreesFahrenheit': '°F',
+            'degreesKelvin': 'K',
+            'volts': 'V',
+            'amperes': 'A',
+            'kilowatts': 'kW',
+            'kilowattHours': 'kWh',
+            'noUnits': '',
+            'litersPerSecond': 'L/s',
+            'cubicMetersPerSecond': 'm³/s',
+            'poundsMass': 'lbs',
+            'kilograms': 'kg',
+            'metersPerSecond': 'm/s',
+            }
+
+            return unit_conversions.get(unit_name, unit_name)
+        except ValueError:
+            return f"unknown-units-{units_code}"
+
 
     def read_point_value(
         self, device_id, object_type, instance_number, property_name="presentValue"

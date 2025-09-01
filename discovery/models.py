@@ -99,23 +99,19 @@ class BACnetPoint(models.Model):
 
     def get_display_value(self):
         if not self.present_value:
-            return "No reading"
+            return "N/A"
 
         value = self.present_value
 
-        if self.data_type == "real":
-            try:
-                float_val = float(value)
-                value = f"{float_val:.2f}"
-            except ValueError:
-                pass
-        elif self.data_type == "boolean":
-            value = (
-                "ON" if str(value).lower() in ["true", "1", "on", "active"] else "OFF"
-            )
+        if isinstance(self.present_value, float):
+            value = f"{self.present_value:.2f}"
+        elif isinstance(self.present_value, (int, str)) and '.' in str(self.present_value):
+            value = f"{float(self.present_value):.2f}"
+        else:
+            value = str(value)
 
         if self.units:
-            return f"{value} {self.units}"
+            value = f"{value} {self.units}"
         return value
 
     @property
