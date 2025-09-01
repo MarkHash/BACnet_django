@@ -155,7 +155,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
             else:
                 present_value = apdu.propertyValue.cast_out(Unsigned)
             print(
-                f"Present_value: {present_value}, object_type: {object_type}, data_type:{apdu.propertyValue.__class__.__name__}"
+                f"Present_value: {present_value}, object_type: {object_type}"
             )
 
             point.update_value(present_value)
