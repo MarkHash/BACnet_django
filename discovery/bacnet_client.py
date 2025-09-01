@@ -4,6 +4,7 @@ from datetime import datetime
 
 from bacpypes.apdu import ReadPropertyRequest, WhoIsRequest
 from bacpypes.app import BIPSimpleApplication
+from bacpypes.basetypes import EngineeringUnits
 from bacpypes.constructeddata import ArrayOf
 from bacpypes.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes.iocb import IOCB
@@ -15,7 +16,6 @@ from bacpypes.primitivedata import (
     Real,
     Unsigned,
 )
-from bacpypes.basetypes import EngineeringUnits
 
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 
@@ -154,7 +154,9 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 present_value = apdu.propertyValue.cast_out(Real)
             else:
                 present_value = apdu.propertyValue.cast_out(Unsigned)
-            print(f"Present_value: {present_value}, object_type: {object_type}, data_type:{apdu.propertyValue.__class__.__name__}")
+            print(
+                f"Present_value: {present_value}, object_type: {object_type}, data_type:{apdu.propertyValue.__class__.__name__}"
+            )
 
             point.update_value(present_value)
             BACnetReading.objects.create(point=point, value=str(present_value))
@@ -227,29 +229,28 @@ class DjangoBACnetClient(BIPSimpleApplication):
         try:
             engineering_unit = EngineeringUnits(units_code)
             logger.debug(f"engineering_unit: {engineering_unit}")
-            unit_name = str(engineering_unit).split('(')[1].rstrip(')')
+            unit_name = str(engineering_unit).split("(")[1].rstrip(")")
 
             unit_conversions = {
-            'percent': '%',
-            'degreesCelsius': '°C',
-            'degreesFahrenheit': '°F',
-            'degreesKelvin': 'K',
-            'volts': 'V',
-            'amperes': 'A',
-            'kilowatts': 'kW',
-            'kilowattHours': 'kWh',
-            'noUnits': '',
-            'litersPerSecond': 'L/s',
-            'cubicMetersPerSecond': 'm³/s',
-            'poundsMass': 'lbs',
-            'kilograms': 'kg',
-            'metersPerSecond': 'm/s',
+                "percent": "%",
+                "degreesCelsius": "°C",
+                "degreesFahrenheit": "°F",
+                "degreesKelvin": "K",
+                "volts": "V",
+                "amperes": "A",
+                "kilowatts": "kW",
+                "kilowattHours": "kWh",
+                "noUnits": "",
+                "litersPerSecond": "L/s",
+                "cubicMetersPerSecond": "m³/s",
+                "poundsMass": "lbs",
+                "kilograms": "kg",
+                "metersPerSecond": "m/s",
             }
 
             return unit_conversions.get(unit_name, unit_name)
         except ValueError:
             return f"unknown-units-{units_code}"
-
 
     def read_point_value(
         self, device_id, object_type, instance_number, property_name="presentValue"

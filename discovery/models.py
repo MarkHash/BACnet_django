@@ -105,7 +105,9 @@ class BACnetPoint(models.Model):
 
         if isinstance(self.present_value, float):
             value = f"{self.present_value:.2f}"
-        elif isinstance(self.present_value, (int, str)) and '.' in str(self.present_value):
+        elif isinstance(self.present_value, (int, str)) and "." in str(
+            self.present_value
+        ):
             value = f"{float(self.present_value):.2f}"
         else:
             value = str(value)
