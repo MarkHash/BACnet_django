@@ -154,9 +154,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 present_value = apdu.propertyValue.cast_out(Real)
             else:
                 present_value = apdu.propertyValue.cast_out(Unsigned)
-            print(
-                f"Present_value: {present_value}, object_type: {object_type}"
-            )
+            print(f"Present_value: {present_value}, object_type: {object_type}")
 
             point.update_value(present_value)
             BACnetReading.objects.create(point=point, value=str(present_value))
