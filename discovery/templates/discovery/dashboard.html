@@ -15,7 +15,7 @@
         <div class="card card-stats">
             <div class="card-body text-center">
                 <h3 class="card-title">{{ total_devices }}</h3>
-                <p class="card-text">TOtal Devices</p>
+                <p class="card-text">Total Devices</p>
             </div>
         </div>
     </div>
@@ -38,7 +38,7 @@
     <div class="col-md-3">
         <div class="card text-white bg-warning">
             <div class="card-body text-center">
-                <h3 class="card-title" id="offline-count">{{ total_devices|add:"-"|add:online_devices }}</h3>
+                <h3 class="card-title" id="offline-count">{{ offline_devices }}</h3>
                 <p class="card-text">Offline Devices</p>
             </div>
         </div>

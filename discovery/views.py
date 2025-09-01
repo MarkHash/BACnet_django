@@ -67,6 +67,7 @@ def dashboard(request):
         "devices": devices,
         "total_devices": devices.count(),
         "online_devices": devices.filter(is_online=True).count(),
+        "offline_devices": devices.filter(is_online=False).count(),
         "total_points": BACnetPoint.objects.count(),
     }
     return render(request, "discovery/dashboard.html", context)
@@ -75,6 +76,15 @@ def dashboard(request):
 def device_detail(request, device_id):
     device = get_object_or_404(BACnetDevice, device_id=device_id)
     points = device.points.all().order_by("object_type", "instance_number")
+
+    try:
+        client = ensure_bacnet_client()
+        if client and points.exists():
+            client.read_all_point_values(device.device_id)
+            logger.debug(f"Triggered point value reading for device {device.device_id}")
+
+    except Exception as e:
+        logger.error(f"Error triggering point value reading: {e}")
 
     points_by_type = {}
     for point in points:
