@@ -216,7 +216,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
             else:
                 point.units = str(apdu.propertyValue)
                 point.save()
-            
+
             logger.debug(f"✓ Updated units for {point.identifier}: {point.units}")
 
         except Exception as e:
