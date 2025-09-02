@@ -14,7 +14,7 @@ class BACnetDevice(models.Model):
     last_seen = models.DateTimeField(auto_now_add=True)
 
     is_online = models.BooleanField(default=True)
-    points_read = models.BooleanField(default=True)
+    points_read = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["device_id"]

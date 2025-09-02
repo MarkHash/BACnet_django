@@ -77,14 +77,23 @@ def device_detail(request, device_id):
     device = get_object_or_404(BACnetDevice, device_id=device_id)
     points = device.points.all().order_by("object_type", "instance_number")
 
-    try:
-        client = ensure_bacnet_client()
-        if client and points.exists():
-            client.read_all_point_values(device.device_id)
-            logger.debug(f"Triggered point value reading for device {device.device_id}")
+    if points.exists() and device.points_read:
+        try:
+            client = ensure_bacnet_client()
+            if client:
+                latest_reading = points.filter(value_last_read__isnull=False).first()
+                if (
+                    not latest_reading
+                    or (timezone.now() - latest_reading.value_last_read).total_seconds()
+                    > 300
+                ):
+                    client.read_all_point_values(device.device_id)
+                    logger.debug(
+                        f"Triggered point value reading for device {device.device_id}"
+                    )
 
-    except Exception as e:
-        logger.error(f"Error triggering point value reading: {e}")
+        except Exception as e:
+            logger.error(f"Error triggering point value reading: {e}")
 
     points_by_type = {}
     for point in points:
@@ -97,6 +106,7 @@ def device_detail(request, device_id):
         "points": points,
         "points_by_type": points_by_type,
         "point_count": points.count(),
+        "points_loaded_recently": device.points_read and points.exists(),
     }
     return render(request, "discovery/device_detail.html", context)
 
@@ -173,11 +183,18 @@ def read_device_points(request, device_id):
                 {
                     "success": True,
                     "message": f"Started reading points for device {device.device_id}",
+                    "device_id": device.device_id,
+                    "estimated_time": "5-10 seconds",
+                    "status": "reading",
                 }
             )
         except Exception as e:
             return JsonResponse(
-                {"success": False, "message": f"Error reading points: {str(e)}"}
+                {
+                    "success": False,
+                    "message": f"Error reading points: {str(e)}",
+                    "device_id": device.device_id,
+                }
             )
 
     return JsonResponse({"success": False, "message": "Invalid request"})

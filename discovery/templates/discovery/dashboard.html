@@ -53,7 +53,7 @@
             </div>
             <div class="card-body">
                 <button id="discover-btn" class="btn btn-primary btn-lg me-3">
-                    <span class="spinner-border spinner-bordersm d-none" role="status"></span>
+                    <span class="spinner-border spinner-border-sm d-none" role="status"></span>
                     🔍 Discover Devices
                 </button>
 
@@ -108,7 +108,7 @@
                                     </p>
 
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{% url 'discovery:device_detail' device.device_id %}" class="btn btn-outline-primary">
+                                        <a href="{% url 'discovery:device_detail' device.device_id %}" class="btn btn-outline-primary view-details-btn" data-device-id="{{ device.device_id }}" data-points-read="{{ device.points_read|yesno:'true,false' }}">
                                             📋 View Details
                                         </a>
                                         <!-- <button class="btn btn-outline-success read-points-btn" data-device-id="{{ device.device_id }}">
@@ -190,6 +190,47 @@
             location.reload();
         });
 
+        document.querySelectorAll('.view-details-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const deviceId = this.dataset.deviceId;
+                const pointsRead = this.dataset.pointsRead === 'true';
+                console.log("pointsRead:", deviceId, pointsRead)
+
+                if (!pointsRead) {
+                    e.preventDefault();
+
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '⏳ Loading Points...';
+                    this.disabled = true;
+
+                    apiCall(`/api/read-points/${deviceId}/`, 'POST')
+                        .then(response => {
+                            if (response.success) {
+                                showAlert('Points discovered! Redirecting...', 'success');
+                                setTimeout(() => {
+                                    window.location.href = this.href + '?reading_points=true';
+                                }, 1000);
+                            } else {
+                                showAlert(response.message, 'danger');
+                                setTimeout(() => {
+                                    window.location.href = this.href + '?reading_points=true';
+                                }, 1000)
+                            }
+                        })
+                        .catch(error => {
+                            showAlert('Error loading points, redirecting anyway...', 'warning');
+                            setTimeout(() => {
+                               window.location.href = this.href + '?reading_points=true'; 
+                            }, 1000);
+                        })
+                        .finally(() => {
+                            this.innerHTML = originalText;
+                            this.disabled = false;
+                        });
+                }
+            });
+        });
+
         document.querySelectorAll('.read-points-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const deviceId = this.dataset.deviceId;
@@ -214,7 +255,7 @@
         });
 
         setInterval(() => {
-            document.getElementsById('last-refresh').textContent = new Date().toLocaleTimeString();
+            document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
         }, 30000);
 
     });

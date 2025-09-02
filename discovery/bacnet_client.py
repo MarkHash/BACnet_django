@@ -97,10 +97,10 @@ class DjangoBACnetClient(BIPSimpleApplication):
                         f"ReadProperty response from unknown device: {device_address}"
                     )
                     return
-                print(
-                    f"+++{apdu.objectIdentifier[0]}, {apdu.propertyIdentifier},"
-                    f" {apdu.propertyValue}, {device.device_id}"
-                )
+                # print(
+                #     f"+++{apdu.objectIdentifier[0]}, {apdu.propertyIdentifier},"
+                #     f" {apdu.propertyValue}, {device.device_id}"
+                # )
 
                 if (
                     apdu.objectIdentifier[0] == "device"
@@ -126,10 +126,10 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 elif apdu.propertyIdentifier == "presentValue":
                     self._handle_present_value_response(apdu, device)
                 elif apdu.propertyIdentifier == "objectName":
-                    print("apdu.propertyIdentifier == 'objectName'")
+                    # print("apdu.propertyIdentifier == 'objectName'")
                     self._handle_object_name_response(apdu, device)
                 elif apdu.propertyIdentifier == "units":
-                    print("apdu.propertyIdentifier == 'units'")
+                    # print("apdu.propertyIdentifier == 'units'")
                     self._handle_units_response(apdu, device)
 
             elif iocb.ioError:
@@ -154,7 +154,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 present_value = apdu.propertyValue.cast_out(Real)
             else:
                 present_value = apdu.propertyValue.cast_out(Unsigned)
-            print(f"Present_value: {present_value}, object_type: {object_type}")
+            # print(f"Present_value: {present_value}, object_type: {object_type}")
 
             point.update_value(present_value)
             BACnetReading.objects.create(point=point, value=str(present_value))
@@ -186,7 +186,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 device=device, object_type=object_type, instance_number=instance_number
             )
 
-            print(f"object_name: {apdu.propertyValue}")
+            # print(f"object_name: {apdu.propertyValue}")
 
             if apdu.propertyValue.__class__.__name__ == "Any":
                 object_name = apdu.propertyValue.cast_out(CharacterString)

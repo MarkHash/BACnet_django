@@ -18,7 +18,7 @@
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <h2>
-                            <span class="online-indicaator {% if device.is_online %}online{% else %}offline{% endif %}"></span>
+                            <span class="online-indicator {% if device.is_online %}online{% else %}offline{% endif %}"></span>
                             Device {{ device.device_id }}
                         </h2>
                         <p class="text-muted mb-0">{{ device.address }}</p>
@@ -77,6 +77,25 @@
     </div>
 </div>
 
+{% if not device.points_read %}
+<div class="row mb-4" id="loading-points-section">
+    <div class="col">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <div class="spinner-border text-warning mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5>Reading Device Points...</h5>
+                <p class="text-muted">Descovering BACnet objects, this may take afew seconds.</p>
+                <div class="progress mt-3">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" stype="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if points %}
     <div class="row mb-4">
         <div class="col">
@@ -107,13 +126,12 @@
                                         </h6>
                                         <div class="sensor-value">
                                             {% if point.present_value %}
-                                                <h4 class="text-primary">{{ point.get_display_value }}</h4>
+                                                <h4>{{ point.get_display_value }}</h4>
                                             {% else %}
-                                                <h4 class="text-muted">-</h4>
+                                                <h4>-</h4>
                                             {% endif %}
                                         </div>
                                         <small class="text-muted">{{ point.object_type|capfirst }} {{ point.instance_number }}</small>
-                                        <!-- <small class="text-muted">{{ point.instance_number }}</small> -->
                                         <br>
                                         <button class="btn btn-sm btn-outline-primary mt2 read-single-point"
                                                 data-device-id="{{ device.device_id }}"
@@ -180,58 +198,6 @@
         </div>
     {% endif %}
 
-    <div class="row mt-4">
-        <div class="col">
-            <div class="card">
-                <div class="card-header">
-                    <h5>All Points ({{ point_count }})</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thread>
-                                <tr>
-                                    <tr>Object Type</tr>
-                                    <tr>Instance</tr>
-                                    <tr>Identifier</tr>
-                                    <tr>Name</tr>
-                                    <tr>Description</tr>
-                                    <tr>Created</tr>
-                                </tr>
-                            </thread>
-                            <tbody>
-                                {% for point in points %}
-                                <tr>
-                                    <td>
-                                        <span class="badge bg-primary">{{ point.object_type }}</span>
-                                    </td>
-                                    <td><code>{{ point.instance_number }}</code></td>
-                                    <td><strong>{{ point.identifier }}</strong></td>
-                                    <td>
-                                        {% if point.object_name %}
-                                            {{ point.object_name }}
-                                        {% else %}
-                                            <em class="text-muted">-</em>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if point.description %}
-                                            {{ point.description|truncatechars:50 }}
-                                        {% else %}
-                                            <em class="text-muted">-</em>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ point.created|date:"M d, H:i" }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
 {% else %}
     <div class="row">
         <div class="col">
@@ -266,12 +232,6 @@
                 <h6>Device Actions</h6>
             </div>
             <div class="card-body">
-                <button class="btn btn-outline-primary me-2">
-                    🔄 Refresh Device Info
-                </button>
-                <button class="btn btn-outline-warning me-2" onclick="if(confirm('Remove this device?')) alert('Feature coming soon!')">
-                    🗑️ Remove Device
-                </button>
                 <a href="{% url 'discovery:dashboard' %}" class="btn btn-outline-secondary">
                     ← Back to Dashboard
                 </a>
@@ -284,6 +244,20 @@
 {% block javascript %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const isReadingPoints = urlParams.get('reading_points') === 'true';
+
+        if (isReadingPoints && !document.querySelector('#sensor-values-container')) {
+            showAlert('Points are being read in the background...', 'info');
+            const checkInterval = setInterval(() => {
+                checkForNewPoints();
+            }, 2000);
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                showAlert('Points reading may still be in progress. Try refreshing the page.', 'warning');
+            }, 30000);
+        }
         document.getElementById('read-points-btn').addEventListener('click', function() {
             const btn = this;
             const spinner = btn.querySelector('.spinner-border');
@@ -396,6 +370,36 @@
             }
         });
 
+        function checkForNewPoints() {
+            const deviceId = document.getElementById('read-values-btn').getAttribute("data-device-id");
+            const url = `/api/device-values/${deviceId}/`;
+
+            apiCall(url, 'GET')
+                .then(response => {
+                    if (response.success && response.total_points > 0) {
+                        location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.log('Still waiting for points');
+                });
+        }
+
+        if (document.getElementById('loading-points-section')) {
+            const checkInterval = setInterval(() => {
+               checkForNewPoints(); 
+            }, 3000);
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                document.getElementById('loading-points-section').innerHTML = `
+                    <div class=alert alert-warning">
+                        <h5>Points Discovery Timeout</h5>
+                        <p>Unable to discover points automatically. you can try manually using the "Read Points" button above.</p>
+                    </div>
+                `;
+            }, 30000);
+        }
+
         function refreshSensorValues() {
             // if (!deviceId) {
             //     console.error('Device ID not found');
@@ -421,16 +425,14 @@
 
         function updateSensorDisplay(points) {
             points.forEach(point => {
-                const row = document.querySelector(`tr[data-point-id="${point.id}"]`);
+                const row = document.querySelector(`div[data-point-id="${point.id}"]`);
                 if (row) {
-                    const valueCell = row.querySelector('.sensor-value');
+                    const valueCell = row.querySelector('.sensor-value h4');
                     if (valueCell) {
                         if (point.display_value) {
                             valueCell.textContent = point.display_value;
-                            valueCell.className = 'text-primary';
                         } else {
                             valueCell.textContent = '-';
-                            valueCell.className = 'text-muted'
                         }
 
                     }
@@ -439,18 +441,35 @@
                     if (nameCell) {
                             if (point.object_name && point.object_name.trim()) {
                                 nameCell.textContent = point.object_name;
-                                nameCell.className = 'text-primary';
                             } else {
-                                nameCell.textContent = '-';
-                                nameCell.className = 'text-muted'
+                                nameCell.textContent = point.identifier;
                             }
 
                         }
                 }
+
+                const typeTableRows = document.querySelectorAll('.table-sm tbody tr');
+                typeTableRows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 3) {
+                        const instanceNumber = cells[0].querySelector('code')?.textContent?.trim();
+                        const identifier = cells[1].querySelector('strong')?.textContent?.trim();
+
+                        if (identifier === point.identifier) {
+                            const nameCell = cells[2];
+                            if (nameCell) {
+                                if (point.object_name && point.object_name.trim()) {
+                                    nameCell.textContent = point.object_name;
+                                } else {
+                                    nameCell.innerHTML = '<em class="text-muted">No Name</em>';
+                                }
+                            }
+                        }
+                    }
+                });
             });
             showAlert('Sensor values refreshed!', 'success');
         }
-
         setInterval(refreshSensorValues, 30000);
         
     });
