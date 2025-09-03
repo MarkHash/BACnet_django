@@ -9,16 +9,12 @@ from bacpypes.constructeddata import ArrayOf
 from bacpypes.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes.iocb import IOCB
 from bacpypes.pdu import Address, GlobalBroadcast
-from bacpypes.primitivedata import (
-    CharacterString,
-    Enumerated,
-    ObjectIdentifier,
-    Real,
-    Unsigned,
-)
+from bacpypes.primitivedata import (CharacterString, Enumerated,
+                                    ObjectIdentifier, Real, Unsigned)
 
+from .exceptions import (DeviceNotFoundByAddressError, DeviceNotFoundError,
+                         PointNotFoundError)
 from .models import BACnetDevice, BACnetPoint, BACnetReading
-from .exceptions import DeviceNotFoundError, DeviceNotFoundByAddressError, PointNotFoundError
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -165,9 +161,13 @@ class DjangoBACnetClient(BIPSimpleApplication):
                     },
                 )
         except BACnetPoint.DoesNotExist:
-            raise PointNotFoundError(device.device_id, object_type, instance_number, "value response")
+            raise PointNotFoundError(
+                device.device_id, object_type, instance_number, "value response"
+            )
         except Exception as e:
-            logger.exception(f"Error handling present value for {object_type}:{instance_number} on device {device.device_id}")
+            logger.exception(
+                f"Error handling present value for {object_type}:{instance_number} on device {device.device_id}"
+            )
 
     def _handle_object_name_response(self, apdu, device):
         try:

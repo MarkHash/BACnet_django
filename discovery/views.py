@@ -11,13 +11,16 @@ from bacpypes.local.device import LocalDeviceObject
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.urls import reverse
 
 from .bacnet_client import DjangoBACnetClient, clear_all_devices
+from .exceptions import (BACnetError, ConfigurationError,
+                         DeviceNotFoundByAddressError, DeviceNotFoundError,
+                         PointNotFoundError)
 from .models import BACnetDevice, BACnetPoint
-from .exceptions import BACnetError, DeviceNotFoundError, DeviceNotFoundByAddressError, PointNotFoundError, ConfigurationError
+
 
 def create_error_response(error, user_friendly=True):
     if isinstance(error, DeviceNotFoundError):
@@ -28,13 +31,15 @@ def create_error_response(error, user_friendly=True):
         message = "BACnet communication error"
     else:
         message = "An unexpected error occurred"
-    
+
     logger.error(f"API Error: {error}")
-    return JsonResponse({
-        "success": False,
-        "message": message,
-        "error_type": error.__class__.__name__,
-    })
+    return JsonResponse(
+        {
+            "success": False,
+            "message": message,
+            "error_type": error.__class__.__name__,
+        }
+    )
 
 
 # Create your views here.
@@ -56,8 +61,11 @@ def load_bacnet_config():
             original_argv = sys.argv.copy()
             ini_path = "./discovery/BACpypes.ini"
             if not os.path.exists(ini_path):
-                raise ConfigurationError("Failed to load BACpypes.ini", config_file="./discovery/BACpypes.ini")
-            
+                raise ConfigurationError(
+                    "Failed to load BACpypes.ini",
+                    config_file="./discovery/BACpypes.ini",
+                )
+
             sys.argv = ["django_bacnet", "--ini", ini_path]
             args = ConfigArgumentParser(
                 description="Django BACnet Discovery"
@@ -140,7 +148,9 @@ def ensure_bacnet_client():
         # args = ConfigArgumentParser(description=__doc__).parse_args()
         config = load_bacnet_config()
         if config is None:
-            raise ConfigurationError("Could not load BACnet configuration from BACpypes.ini")
+            raise ConfigurationError(
+                "Could not load BACnet configuration from BACpypes.ini"
+            )
 
         device = LocalDeviceObject(
             objectName=config.objectname,
@@ -321,7 +331,7 @@ def get_point_history_api(request, point_id):
 
         readings = point.readings.all()[:50]
         readings_data = []
-        
+
         for reading in readings:
             readings_data.append(
                 {
