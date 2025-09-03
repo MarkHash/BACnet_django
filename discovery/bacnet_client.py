@@ -15,13 +15,13 @@ from bacpypes.primitivedata import (
     ObjectIdentifier,
     Real,
     Unsigned
-    )
+)
 
 from .exceptions import (
     DeviceNotFoundByAddressError,
     DeviceNotFoundError,
     PointNotFoundError
-    )
+)
 
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 

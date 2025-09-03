@@ -22,7 +22,7 @@ from .exceptions import (
     DeviceNotFoundByAddressError,
     DeviceNotFoundError,
     PointNotFoundError
-    )
+)
 
 from .models import BACnetDevice, BACnetPoint
 
