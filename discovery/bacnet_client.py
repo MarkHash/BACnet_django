@@ -22,7 +22,6 @@ from .exceptions import (
     DeviceNotFoundError,
     PointNotFoundError,
 )
-
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 
 logging.basicConfig(
