@@ -110,7 +110,8 @@ class DjangoBACnetClient(BIPSimpleApplication):
                     if points:
                         self._save_points_to_database(device, points)
                         logger.debug(
-                            f"✓ Saved {len(points)} points for device: {device.device_id}"
+                            f"""✓ Saved {len(points)} points for device:
+                             {device.device_id}"""
                         )
 
                         if self.callback:
@@ -174,7 +175,8 @@ class DjangoBACnetClient(BIPSimpleApplication):
             )
         except Exception as e:
             logger.exception(
-                f"Error handling present value for {object_type}:{instance_number} on device {device.device_id}"
+                f"""Error handling present value for {object_type}:{instance_number}
+                 on device {device.device_id}: {e}"""
             )
 
     def _handle_object_name_response(self, apdu, device):
