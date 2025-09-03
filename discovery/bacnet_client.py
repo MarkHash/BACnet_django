@@ -14,12 +14,15 @@ from bacpypes.primitivedata import (
     Enumerated,
     ObjectIdentifier,
     Real,
-    Unsigned)
+    Unsigned
+    )
 
 from .exceptions import (
     DeviceNotFoundByAddressError,
     DeviceNotFoundError,
-    PointNotFoundError)
+    PointNotFoundError
+    )
+
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 
 logging.basicConfig(

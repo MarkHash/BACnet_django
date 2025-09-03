@@ -21,7 +21,8 @@ from .exceptions import (
     ConfigurationError,
     DeviceNotFoundByAddressError,
     DeviceNotFoundError,
-    PointNotFoundError)
+    PointNotFoundError
+    )
 
 from .models import BACnetDevice, BACnetPoint
 
