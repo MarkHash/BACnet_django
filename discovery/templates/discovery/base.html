@@ -64,7 +64,7 @@
     <script>
         function showAlert(message, type = 'info'){
             const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} alert-dsmissible fade show`;
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
             alertDiv.innerHTML = `
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>

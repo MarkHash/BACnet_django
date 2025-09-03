@@ -13,9 +13,29 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
+from django.urls import reverse
 
 from .bacnet_client import DjangoBACnetClient, clear_all_devices
 from .models import BACnetDevice, BACnetPoint
+from .exceptions import BACnetError, DeviceNotFoundError, DeviceNotFoundByAddressError, PointNotFoundError, ConfigurationError
+
+def create_error_response(error, user_friendly=True):
+    if isinstance(error, DeviceNotFoundError):
+        message = f"Device {error.device_id} not found"
+    elif isinstance(error, ConfigurationError):
+        message = "Configuration error - check BACpypes.ini file"
+    elif isinstance(error, BACnetError):
+        message = "BACnet communication error"
+    else:
+        message = "An unexpected error occurred"
+    
+    logger.error(f"API Error: {error}")
+    return JsonResponse({
+        "success": False,
+        "message": message,
+        "error_type": error.__class__.__name__,
+    })
+
 
 # Create your views here.
 logging.basicConfig(
@@ -32,12 +52,12 @@ def load_bacnet_config():
     global bacnet_config
     if bacnet_config is None:
         try:
-            logger.debug("Loading BAcnet configuration from BACpypes.ini...")
+            logger.debug("Loading BACnet configuration from BACpypes.ini...")
             original_argv = sys.argv.copy()
             ini_path = "./discovery/BACpypes.ini"
             if not os.path.exists(ini_path):
-                logger.debug(f"{ini_path} not found in current directory")
-                return None
+                raise ConfigurationError("Failed to load BACpypes.ini", config_file="./discovery/BACpypes.ini")
+            
             sys.argv = ["django_bacnet", "--ini", ini_path]
             args = ConfigArgumentParser(
                 description="Django BACnet Discovery"
@@ -45,7 +65,7 @@ def load_bacnet_config():
             bacnet_config = args.ini
             sys.argv = original_argv
 
-            logger.debug(f"✅ Configuration loaded:")
+            logger.debug("✅ Configuration loaded:")
             logger.debug(f"   Device Name: {bacnet_config}")
 
         except Exception as e:
@@ -120,7 +140,7 @@ def ensure_bacnet_client():
         # args = ConfigArgumentParser(description=__doc__).parse_args()
         config = load_bacnet_config()
         if config is None:
-            raise Exception("Could not load BACnet configuration from BACpypes.ini")
+            raise ConfigurationError("Could not load BACnet configuration from BACpypes.ini")
 
         device = LocalDeviceObject(
             objectName=config.objectname,
@@ -162,10 +182,13 @@ def start_discovery(request):
                     f" - devices will appear in a few seconds",
                 }
             )
+        except ConfigurationError as e:
+            return create_error_response(e)
+        except BACnetError as e:
+            return create_error_response(e)
         except Exception as e:
-            return JsonResponse(
-                {"success": False, "message": f"Error starting discovery: {str(e)}"}
-            )
+            logger.exception("Unexpected error in start_discovery")
+            return create_error_response(e)
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
@@ -188,14 +211,13 @@ def read_device_points(request, device_id):
                     "status": "reading",
                 }
             )
+        except ConfigurationError as e:
+            return create_error_response(e)
+        except BACnetError as e:
+            return create_error_response(e)
         except Exception as e:
-            return JsonResponse(
-                {
-                    "success": False,
-                    "message": f"Error reading points: {str(e)}",
-                    "device_id": device.device_id,
-                }
-            )
+            logger.exception(f"Unexpected error reading points for {device_id}")
+            return create_error_response(e)
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
@@ -215,10 +237,13 @@ def read_point_values(request, device_id):
                     "message": f"Started reading sensor values for device {device.device_id}",
                 }
             )
+        except ConfigurationError as e:
+            return create_error_response(e)
+        except BACnetError as e:
+            return create_error_response(e)
         except Exception as e:
-            return JsonResponse(
-                {"success": False, "message": f"Error reading values: {str(e)}"}
-            )
+            logger.exception(f"Unexpected error reading points for {device.device_id}")
+            return create_error_response(e)
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
@@ -238,10 +263,13 @@ def read_single_point_value(request, device_id, object_type, instance_number):
                     "message": f"Reading values from {object_type}:{instance_number}",
                 }
             )
+        except ConfigurationError as e:
+            return create_error_response(e)
+        except BACnetError as e:
+            return create_error_response(e)
         except Exception as e:
-            return JsonResponse(
-                {"success": False, "message": f"Error reading values: {str(e)}"}
-            )
+            logger.exception(f"Unexpected error reading points for {device_id}")
+            return create_error_response(e)
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
@@ -278,21 +306,24 @@ def get_device_value_api(request, device_id):
                 "last_updated": timezone.now().isoformat(),
             }
         )
-
+    except ConfigurationError as e:
+        return create_error_response(e)
+    except BACnetError as e:
+        return create_error_response(e)
     except Exception as e:
-        return JsonResponse(
-            {"success": False, "message": f"Error getting device values: {str(e)}"}
-        )
+        logger.exception(f"Unexpected error reading points for {device_id}")
+        return create_error_response(e)
 
 
 def get_point_history_api(request, point_id):
     try:
-        fpoint = get_object_or_404(BACnetPoint, id=point_id)
+        point = get_object_or_404(BACnetPoint, id=point_id)
 
         readings = point.readings.all()[:50]
         readings_data = []
+        
         for reading in readings:
-            readings.append(
+            readings_data.append(
                 {
                     "value": reading.value,
                     "units": reading.units,

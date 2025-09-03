@@ -18,6 +18,7 @@ from bacpypes.primitivedata import (
 )
 
 from .models import BACnetDevice, BACnetPoint, BACnetReading
+from .exceptions import DeviceNotFoundError, DeviceNotFoundByAddressError, PointNotFoundError
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -93,14 +94,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 try:
                     device = BACnetDevice.objects.get(address=device_address)
                 except BACnetDevice.DoesNotExist:
-                    logger.error(
-                        f"ReadProperty response from unknown device: {device_address}"
-                    )
-                    return
-                # print(
-                #     f"+++{apdu.objectIdentifier[0]}, {apdu.propertyIdentifier},"
-                #     f" {apdu.propertyValue}, {device.device_id}"
-                # )
+                    raise DeviceNotFoundByAddressError(device_address)
 
                 if (
                     apdu.objectIdentifier[0] == "device"
@@ -112,7 +106,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                     if points:
                         self._save_points_to_database(device, points)
                         logger.debug(
-                            f"✓ Saved {len(points)} points for device{device.device_id}"
+                            f"✓ Saved {len(points)} points for device: {device.device_id}"
                         )
 
                         if self.callback:
@@ -171,11 +165,9 @@ class DjangoBACnetClient(BIPSimpleApplication):
                     },
                 )
         except BACnetPoint.DoesNotExist:
-            logger.debug(
-                f"Point not found for value response: {object_type}: {instance_number}"
-            )
+            raise PointNotFoundError(device.device_id, object_type, instance_number, "value response")
         except Exception as e:
-            logger.debug(f"Error handling present value: {e}")
+            logger.exception(f"Error handling present value for {object_type}:{instance_number} on device {device.device_id}")
 
     def _handle_object_name_response(self, apdu, device):
         try:
@@ -272,7 +264,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 f":{instance_number} on device {device_id}"
             )
         except BACnetDevice.DoesNotExist:
-            logger.debug(f"Device {device_id} not found")
+            raise DeviceNotFoundError(device_id)
         except Exception as e:
             logger.debug(f"Error reading point value: {e}")
 
@@ -321,7 +313,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 )
 
         except BACnetDevice.DoesNotExist:
-            logger.debug(f"Device {device_id} not found")
+            raise DeviceNotFoundError(device_id)
         except Exception as e:
             logger.debug(f"Error reading point value: {e}")
 
@@ -380,7 +372,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
         device.save()
 
     def send_whois(self):
-        """Send a WhoIs erquest as a global broadast"""
+        """Send a WhoIs request as a global broadcast"""
 
         if _debug:
             DjangoBACnetClient._debug("Send WhoIs request")
@@ -418,7 +410,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
             logger.debug(f"✓ Reading object list from device {device_id}")
 
         except BACnetDevice.DoesNotExist:
-            logger.error(f"Device {device_id} not found in database")
+            raise DeviceNotFoundError(device_id)
         except Exception as e:
             logger.error(f"Error reading device objects: {e}")
             traceback.print_exc()
@@ -449,7 +441,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 )
             return points
         except BACnetDevice.DoesNotExist:
-            return []
+            raise DeviceNotFoundError(device_id)
 
 
 def start_bacnet_discovery(callback=None):
@@ -458,7 +450,7 @@ def start_bacnet_discovery(callback=None):
 
 
 def get_device_count():
-    return BACnetDevice.count()
+    return BACnetDevice.objects.count()
 
 
 def get_online_device_count():
