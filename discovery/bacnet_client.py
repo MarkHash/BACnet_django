@@ -9,11 +9,17 @@ from bacpypes.constructeddata import ArrayOf
 from bacpypes.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes.iocb import IOCB
 from bacpypes.pdu import Address, GlobalBroadcast
-from bacpypes.primitivedata import (CharacterString, Enumerated,
-                                    ObjectIdentifier, Real, Unsigned)
+from bacpypes.primitivedata import (
+    CharacterString,
+    Enumerated,
+    ObjectIdentifier,
+    Real,
+    Unsigned)
 
-from .exceptions import (DeviceNotFoundByAddressError, DeviceNotFoundError,
-                         PointNotFoundError)
+from .exceptions import (
+    DeviceNotFoundByAddressError,
+    DeviceNotFoundError,
+    PointNotFoundError)
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 
 logging.basicConfig(

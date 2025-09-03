@@ -16,9 +16,13 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from .bacnet_client import DjangoBACnetClient, clear_all_devices
-from .exceptions import (BACnetError, ConfigurationError,
-                         DeviceNotFoundByAddressError, DeviceNotFoundError,
-                         PointNotFoundError)
+from .exceptions import (
+    BACnetError,
+    ConfigurationError,
+    DeviceNotFoundByAddressError,
+    DeviceNotFoundError,
+    PointNotFoundError)
+
 from .models import BACnetDevice, BACnetPoint
 
 
