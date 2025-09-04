@@ -111,30 +111,51 @@ def device_detail(request, device_id):
     device = get_object_or_404(BACnetDevice, device_id=device_id)
     points = device.points.all().order_by("object_type", "instance_number")
 
-    if points.exists() and device.points_read:
-        try:
-            client = ensure_bacnet_client()
-            if client:
-                latest_reading = points.filter(value_last_read__isnull=False).first()
-                if (
-                    not latest_reading
-                    or (timezone.now() - latest_reading.value_last_read).total_seconds()
-                    > BACnetConstants.REFRESH_THRESHOLD_SECONDS
-                ):
-                    client.read_all_point_values(device.device_id)
-                    logger.debug(
-                        f"Triggered point value reading for device {device.device_id}"
-                    )
+    _trigger_auto_refresh_if_needed(device, points)
+    points_by_type = _organise_points_by_type(points)
+    context = _build_device_context(device, points, points_by_type)
 
-        except Exception as e:
-            logger.error(f"Error triggering point value reading: {e}")
+    return render(request, "discovery/device_detail.html", context)
 
+
+def _trigger_auto_refresh_if_needed(device, points):
+    if not (points.exists() and device.points_read):
+        return
+
+    try:
+        client = ensure_bacnet_client()
+        if not client:
+            return
+        latest_reading = points.filter(value_last_read__isnull=False).first()
+        if not _should_refresh_readings(latest_reading):
+            return
+
+        client.read_all_point_values(device.device_id)
+        logger.debug(f"Triggered point value reading for device {device.device_id}")
+
+    except Exception as e:
+        logger.error(f"Error triggering point value reading: {e}")
+
+
+def _should_refresh_readings(latest_reading):
+    if not latest_reading:
+        return True
+    time_since_reading = (
+        timezone.now() - latest_reading.value_last_read
+    ).total_seconds()
+    return time_since_reading > BACnetConstants.REFRESH_THRESHOLD_SECONDS
+
+
+def _organise_points_by_type(points):
     points_by_type = {}
     for point in points:
         if point.object_type not in points_by_type:
             points_by_type[point.object_type] = []
         points_by_type[point.object_type].append(point)
+    return points_by_type
 
+
+def _build_device_context(device, points, points_by_type):
     context = {
         "device": device,
         "points": points,
@@ -142,45 +163,58 @@ def device_detail(request, device_id):
         "point_count": points.count(),
         "points_loaded_recently": device.points_read and points.exists(),
     }
-    return render(request, "discovery/device_detail.html", context)
+    return context
 
 
 def ensure_bacnet_client():
     global bacnet_client
 
-    if bacnet_client is None:
-        logger.debug("🔧 Creating BACnet client...")
+    if bacnet_client is not None:
+        return bacnet_client
 
-        # args = ConfigArgumentParser(description=__doc__).parse_args()
-        config = load_bacnet_config()
-        if config is None:
-            raise ConfigurationError(
-                "Could not load BACnet configuration from BACpypes.ini"
-            )
+    logger.debug("🔧 Creating BACnet client...")
 
-        device = LocalDeviceObject(
-            objectName=config.objectname,
-            objectIdentifier=int(config.objectidentifier),
-            maxApduLengthAccepted=int(config.maxapdulengthaccepted),
-            segmentationSupported=config.segmentationsupported,
-            vendorIdentifier=int(config.vendoridentifier),
+    config = load_bacnet_config()
+    if config is None:
+        raise ConfigurationError(
+            "Could not load BACnet configuration from BACpypes.ini"
         )
-        logger.debug(f"📡 Creating BACnet client with address: {config.address}")
 
-        def callback(event_type, data):
-            logger.debug(f"BACnet event: {event_type} - {data}")
+    device = _create_local_device(config)
+    logger.debug(f"📡 Creating BACnet client with address: {config.address}")
 
-        bacnet_client = DjangoBACnetClient(callback, device, config.address)
+    bacnet_client = _create_bacnet_client(config, device)
+    _start_bacnet_thread()
 
-        def run_bacnet():
-            enable_sleeping()
-            run()
-
-        bacnet_thread = threading.Thread(target=run_bacnet, daemon=True)
-        bacnet_thread.start()
-
-        logger.debug("✅ BACnet client started!")
     return bacnet_client
+
+
+def _create_bacnet_client(config, device):
+    def callback(event_type, data):
+        logger.debug(f"BACnet event: {event_type} - {data}")
+
+    return DjangoBACnetClient(callback, device, config.address)
+
+
+def _start_bacnet_thread():
+    def run_bacnet():
+        enable_sleeping()
+        run()
+
+    bacnet_thread = threading.Thread(target=run_bacnet, daemon=True)
+    bacnet_thread.start()
+
+    logger.debug("✅ BACnet client started!")
+
+
+def _create_local_device(config):
+    return LocalDeviceObject(
+        objectName=config.objectname,
+        objectIdentifier=int(config.objectidentifier),
+        maxApduLengthAccepted=int(config.maxapdulengthaccepted),
+        segmentationSupported=config.segmentationsupported,
+        vendorIdentifier=int(config.vendoridentifier),
+    )
 
 
 @csrf_exempt

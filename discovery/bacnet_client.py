@@ -91,55 +91,59 @@ class DjangoBACnetClient(BIPSimpleApplication):
         if _debug:
             DjangoBACnetClient._debug("process_read_response %r", iocb)
 
+        if iocb.ioError:
+            logger.error(f"ReadProperty error: {iocb.ioError}")
+            return
+
+        if not iocb.ioResponse:
+            logger.error("ReadProperty timeout")
+            return
+
         try:
-            if iocb.ioResponse:
-                apdu = iocb.ioResponse
-                device_address = str(apdu.pduSource)
+            apdu = iocb.ioResponse
+            device_address = str(apdu.pduSource)
+            device = self._get_device_by_address(device_address)
 
-                try:
-                    device = BACnetDevice.objects.get(address=device_address)
-                except BACnetDevice.DoesNotExist:
-                    raise DeviceNotFoundByAddressError(device_address)
-
-                if (
-                    apdu.objectIdentifier[0] == "device"
-                    and apdu.propertyIdentifier == "objectList"
-                ):
-                    points = self._parse_object_list(
-                        apdu.propertyValue, device.device_id
-                    )
-                    if points:
-                        self._save_points_to_database(device, points)
-                        logger.debug(
-                            f"""✓ Saved {len(points)} points for device:
-                             {device.device_id}"""
-                        )
-
-                        if self.callback:
-                            self.callback(
-                                "points_found",
-                                {
-                                    "device_id": device.device_id,
-                                    "point_count": len(points),
-                                },
-                            )
-                elif apdu.propertyIdentifier == "presentValue":
-                    self._handle_present_value_response(apdu, device)
-                elif apdu.propertyIdentifier == "objectName":
-                    # print("apdu.propertyIdentifier == 'objectName'")
-                    self._handle_object_name_response(apdu, device)
-                elif apdu.propertyIdentifier == "units":
-                    # print("apdu.propertyIdentifier == 'units'")
-                    self._handle_units_response(apdu, device)
-
-            elif iocb.ioError:
-                logger.error(f"ReadProperty error: {iocb.ioError}")
-            else:
-                logger.error("ReadProperty timeout")
+            self._dispatch_response_handler(apdu, device)
 
         except Exception as e:
             logger.error(f"Error processing ReadProperty response: {e}")
             traceback.print_exc()
+
+    def _dispatch_response_handler(self, apdu, device):
+        if (
+            apdu.objectIdentifier[0] == "device"
+            and apdu.propertyIdentifier == "objectList"
+        ):
+            self._handle_object_list_response(apdu, device)
+        elif apdu.propertyIdentifier == "presentValue":
+            self._handle_present_value_response(apdu, device)
+        elif apdu.propertyIdentifier == "objectName":
+            # print("apdu.propertyIdentifier == 'objectName'")
+            self._handle_object_name_response(apdu, device)
+        elif apdu.propertyIdentifier == "units":
+            # print("apdu.propertyIdentifier == 'units'")
+            self._handle_units_response(apdu, device)
+
+    def _handle_object_list_response(self, apdu, device):
+        points = self._parse_object_list(apdu.propertyValue, device.device_id)
+        if points:
+            self._save_points_to_database(device, points)
+            logger.debug(f"✓ Saved {len(points)} points for device:{device.device_id}")
+            if self.callback:
+                self.callback(
+                    "points_found",
+                    {
+                        "device_id": device.device_id,
+                        "point_count": len(points),
+                    },
+                )
+
+    def _get_device_by_address(self, device_address):
+        try:
+            return BACnetDevice.objects.get(address=device_address)
+        except BACnetDevice.DoesNotExist:
+            raise DeviceNotFoundByAddressError(device_address)
 
     def _handle_present_value_response(self, apdu, device):
         try:
@@ -229,27 +233,10 @@ class DjangoBACnetClient(BIPSimpleApplication):
     def _convert_units_enum_to_text(self, units_code):
         try:
             engineering_unit = EngineeringUnits(units_code)
-            logger.debug(f"engineering_unit: {engineering_unit}")
+            # logger.debug(f"engineering_unit: {engineering_unit}")
             unit_name = str(engineering_unit).split("(")[1].rstrip(")")
 
-            unit_conversions = {
-                "percent": "%",
-                "degreesCelsius": "°C",
-                "degreesFahrenheit": "°F",
-                "degreesKelvin": "K",
-                "volts": "V",
-                "amperes": "A",
-                "kilowatts": "kW",
-                "kilowattHours": "kWh",
-                "noUnits": "",
-                "litersPerSecond": "L/s",
-                "cubicMetersPerSecond": "m³/s",
-                "poundsMass": "lbs",
-                "kilograms": "kg",
-                "metersPerSecond": "m/s",
-            }
-
-            return unit_conversions.get(unit_name, unit_name)
+            return BACnetConstants.UNIT_CONVERSIONS.get(unit_name, unit_name)
         except ValueError:
             return f"unknown-units-{units_code}"
 
