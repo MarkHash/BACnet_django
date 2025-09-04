@@ -71,6 +71,56 @@
             DISCOVERY_TIMEOUT: 30000,
             REFRESH_INTERVAL: 30000
         }
+
+        function handleButtonState(button, promise, loadingText = null){
+            const spinner = button.querySelector('.spinner-border');
+            const originalText = button.innerHTML;
+
+            button.disabled = true;
+            if (spinner) {
+                spinner.classList.remove('d-none');
+            }
+            if (loadingText) {
+                button.innerHTML = loadingText;
+            }
+
+            return promise.finally(() => {
+                setTimeout(() => {
+                    button.disabled = false;
+                    if (spinner) {
+                        spinner.classList.add('d-none');
+                    }
+                    button.innerHTML = originalText;
+                }, TIMEOUTS.BUTTON_RESET);
+            });
+        }
+
+        function handleApiResponse(promise, successCallback = null, errorCallback = null) {
+            return promise
+                .then(response => {
+                    if (response.success) {
+                        showAlert(response.message, 'success');
+                        if (successCallback) successCallback(response);
+                    } else {
+                        showAlert(response.message, 'danger');
+                        if (errorCallback) errorCallback(response);
+                    }
+                    return response;
+                })
+                .catch(error => {
+                    showAlert('An error occurred', 'danger');
+                    console.error('API Error:', error);
+                    if (errorCallback) errorCallback(error);
+                    throw error;
+                });
+        }
+
+        function reloadPageAfterDelay(delay = TIMEOUTS.PAGE_RELOAD) {
+            setTimeout(() => {
+                location.reload();
+            }, delay)
+        }
+        
         function showAlert(message, type = 'info'){
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert alert-${type} alert-dismissible fade show`;

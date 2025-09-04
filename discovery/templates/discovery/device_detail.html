@@ -259,81 +259,40 @@
             }, TIMEOUTS.DISCOVERY_TIMEOUT);
         }
         document.getElementById('read-points-btn').addEventListener('click', function() {
-            const btn = this;
-            const spinner = btn.querySelector('.spinner-border');
-            const originalText = btn.innerHTML;
-
-            const deviceId = btn.getAttribute('data-device-id');
-            const url = `/api/read-points/${deviceId}/`;
-            console.log('Device ID:', deviceId);
-            console.log('Calling URL:', url);
+            const deviceId = this.getAttribute('data-device-id');
 
             if (!deviceId) {
                 showAlert("Error: No device ID found", 'danger');
-                return ;
+                return;
             }
 
-            btn.disabled = true;
-            spinner.classList.remove('d-none');
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Reading Points...';
-
-            apiCall(url, 'POST')
-                .then(response => {
-                    console.log("API Response:", response);
-                    if (response.success) {
-                        showAlert(response.message, 'success');
+            const promise = apiCall(`/api/read-points/${deviceId}/`, 'POST');
+            handleButtonState(this,
+                handleApiResponse(promise,
+                    (response) => {
                         showAlert('Page will refresh in 5 seconds to show discovered points...', 'info');
-                        setTimeout(() => {
-                            location.reload();
-                        }, TIMEOUTS.PAGE_RELOAD);
-                    } else {
-                        showAlert(response.message, 'danger');
-                    }
-                })
-                .catch(error => {
-                    console.error("API error:", error);
-                    showAlert('Error reading points', 'danger');
-                })
-                .finally(() => {
-                    setTimeout(() => {
-                        btn.disabled = false;
-                        spinner.classList.add('d-none');
-                        btn.innerHTML = originalText;
-                    }, TIMEOUTS.BUTTON_RESET);
-                });
+                        reloadPageAfterDelay();
+                    },
+                    () => showAlert('Error reading points', 'danger')
+                ),
+                '<span class="spinner-border spinner-border-sm" role="status"></span> Reading Points...'
+            );
         });
 
         document.getElementById('read-values-btn').addEventListener('click', function(){
-            const btn = this;
-            const spinner = btn.querySelector('.spinner-border');
-            const originalText = btn.innerHTML;
-            const deviceId = btn.getAttribute('data-device-id');
-            const url = `/api/read-values/${deviceId}/`;
-
-            btn.disabled = true;
-            spinner.classList.remove('d-none');
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Reading Sensor Values...'
-
-            apiCall(url, 'POST')
-                .then(response => {
-                    if (response.success) {
-                        showAlert(response.message, "success");
+            const deviceId = this.getAttribute('data-device-id');
+            const promise = apiCall(`/api/read-values/${deviceId}/`, 'POST');
+            handleButtonState(this,
+                handleApiResponse(promise,
+                    (response) => {
                         showAlert('Sensor values will update in a few seconds...', 'info');
                         setTimeout(() => {
                             refreshSensorValues();
                         }, TIMEOUTS.POINT_CHECK_INTERVAL);
-                    } else {
-                        showAlert(response.message, "danger");
-                    }
-                })
-                .catch(error => {
-                    showAlert("Error reading sensor values", "danger");
-                })
-                .finally(() => {
-                    btn.disabled = false;
-                    spinner.classList.add('d-none');
-                    btn.innerHTML = originalText;
-                });
+                    },
+                    () => showAlert("Error reading sensor values", "danger")
+                ), '<span class="spinner-border spinner-border-sm" role="status"></span> Reading Sensor Values...'
+            );
         });
 
         document.getElementById('refresh-values-btn').addEventListener('click', function() {
@@ -346,27 +305,19 @@
                 const deviceId = btn.getAttribute('data-device-id');
                 const objectType = btn.getAttribute('data-object-type');
                 const instance = btn.getAttribute('data-instance');
-                const originalText = btn.innerHTML;
 
-                this.disabled = true;
-                this.innerHTML = "⏳ Reading...";
-                const url = `/api/read-point/${deviceId}/${objectType}/${instance}/`;
+                const promise = apiCall(`/api/read-point/${deviceId}/${objectType}/${instance}/`, 'POST');
 
-                apiCall(url, 'POST')
-                .then(response => {
-                    if (response.success) {
-                        showAlert(response.message, 'info');
-                        setTimeout(() => {
-                            refreshSensorValues();
-                        }, TIMEOUTS.BUTTON_RESET);
-                    } else {
-                        showAlert(response.message, 'danger');
-                    }
-                })
-                .finally(() => {
-                    this.disabled = false;
-                    this.innerHTML = originalText;
-                });
+                handleButtonState(btn,
+                    handleApiResponse(promise,
+                        (response) => {
+                            setTimeout(() => {
+                                refreshSensorValues();
+                            }, TIMEOUTS.BUTTON_RESET);
+                        }
+                    ),
+                    "⏳ Reading..."
+                );
             }
         });
 

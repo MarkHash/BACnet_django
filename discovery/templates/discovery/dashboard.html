@@ -146,43 +146,17 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('discover-btn').addEventListener('click', function() {
-            const btn = this;
-            const spinner = btn.querySelector('.spinner-border');
-
-            btn.disabled = true;
-            spinner.classList.remove('d-none');
-
-            apiCall(`/api/start-discovery/`, 'POST')
-                .then(response => {
-                    if (response.success) {
-                        showAlert(response.message, 'success');
-                        setTimeout(() => {
-                            location.reload();
-                        }, TIMEOUTS.PAGE_RELOAD);
-                    } else {
-                        showAlert(response.message, 'danger');
-                    }
-                })
-                .catch(error => {
-                    showAlert('Error starting discovery', 'danger');
-                })
-                .finally(() => {
-                    btn.disabled = false;
-                    spinner.classList.add('d-none');
-                });
+            const promise = apiCall(`/api/start-discovery/`, 'POST');
+            handleButtonState(this, handleApiResponse(promise,
+                () => reloadPageAfterDelay(),
+                () => showAlert('Error starting discovery', 'danger')
+            ));
         });
 
         document.getElementById('clear-btn').addEventListener('click', function() {
             if (confirm('Are you sure you want to clear all devices? This cannot be undone.')) {
-                apiCall(`/api/clear-devices/`, 'POST')
-                    .then(response => {
-                        if (response.success) {
-                            showAlert(response.message, 'success');
-                            location.reload();
-                        } else {
-                            showAlert(response.message, 'danger');
-                        }
-                    });
+                const promise = apiCall(`/api/clear-devices/`, 'POST');
+                handleApiResponse(promise, () => location.reload());
             }
         });
 
@@ -194,39 +168,25 @@
             btn.addEventListener('click', function(e) {
                 const deviceId = this.dataset.deviceId;
                 const pointsRead = this.dataset.pointsRead === 'true';
-                console.log("pointsRead:", deviceId, pointsRead)
+                console.log("pointsRead:", deviceId, pointsRead);
 
                 if (!pointsRead) {
                     e.preventDefault();
-
-                    const originalText = this.innerHTML;
-                    this.innerHTML = '⏳ Loading Points...';
-                    this.disabled = true;
-
-                    apiCall(`/api/read-points/${deviceId}/`, 'POST')
-                        .then(response => {
-                            if (response.success) {
-                                showAlert('Points discovered! Redirecting...', 'success');
-                                setTimeout(() => {
-                                    window.location.href = this.href + '?reading_points=true';
-                                }, TIMEOUTS.REDIRECT_DELAY);
-                            } else {
-                                showAlert(response.message, 'danger');
-                                setTimeout(() => {
-                                    window.location.href = this.href + '?reading_points=true';
-                                }, TIMEOUTS.REDIRECT_DELAY)
-                            }
-                        })
-                        .catch(error => {
-                            showAlert('Error loading points, redirecting anyway...', 'warning');
+                    const promise = apiCall(`/api/read-points/${deviceId}/`, 'POST');
+                    handleButtonState(this, handleApiResponse(promise,
+                        () => {
+                            showAlert('Points discovered! Redirecting...', 'success');
                             setTimeout(() => {
-                               window.location.href = this.href + '?reading_points=true'; 
+                                window.location.href = this.href + '?reading_points=true';
+                                }, TIMEOUTS.REDIRECT_DELAY);
+                            },
+                        () => {
+                            showAlert('Error loading points data', 'warning');
+                            setTimeout(() => {
+                                window.location.href = this.href + '?reading_points=true';
                             }, TIMEOUTS.REDIRECT_DELAY);
-                        })
-                        .finally(() => {
-                            this.innerHTML = originalText;
-                            this.disabled = false;
-                        });
+                        }
+                    ),'⏳ Loading Points...');
                 }
             });
         });
@@ -234,23 +194,9 @@
         document.querySelectorAll('.read-points-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const deviceId = this.dataset.deviceId;
-                const originalText = this.innerHTML;
-
-                this.disabled = true;
-                this.innerHTML = '⏳ Reading...';
-
-                apiCall(`/api/read-points/${deviceId}/`, 'POST')
-                    .then(response => {
-                        if (response.success) {
-                            showAlert(response.message, 'success');
-                        } else {
-                            showAlert(response.message, 'danger');
-                        }
-                    })
-                    .finally(() => {
-                        this.disabled = false;
-                        this.innerHTML = originalText;
-                    });
+                const promise = apiCall(`/api/read-points/${deviceId}/`, 'POST');
+                handleButtonState(this, handleApiResponse(promise), '⏳ Reading...'
+                );
             });
         });
 
