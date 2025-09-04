@@ -62,6 +62,15 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const TIMEOUTS = {
+            ALERT_DISMISS: 5000,
+            BUTTON_RESET: 2000,
+            PAGE_RELOAD: 3000,
+            REDIRECT_DELAY: 1000,
+            POINT_CHECK_INTERVAL: 3000,
+            DISCOVERY_TIMEOUT: 30000,
+            REFRESH_INTERVAL: 30000
+        }
         function showAlert(message, type = 'info'){
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
@@ -75,7 +84,7 @@
                 if (alertDiv.parentNode) {
                     alertDiv.remove();
                 }
-            }, 5000);
+            }, TIMEOUTS.ALERT_DISMISS);
         }
 
         function apiCall(url, method = 'GET', data = null){

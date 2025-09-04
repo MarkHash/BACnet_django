@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 
+from .constants import BACnetConstants
+
 
 # Create your models here.
 class BACnetDevice(models.Model):
@@ -118,17 +120,8 @@ class BACnetPoint(models.Model):
 
     @property
     def is_readable(self):
-        readable_types = [
-            "analogInput",
-            "analogOutput",
-            "analogValue",
-            "binaryInput",
-            "binaryOutput",
-            "binaryValue",
-            "multiStateInput",
-            "multiStateOutput",
-            "multiStateValue",
-        ]
+        readable_types = BACnetConstants.READABLE_OBJECT_TYPES
+
         return self.object_type in readable_types
 
 

@@ -17,6 +17,7 @@ from bacpypes.primitivedata import (
     Unsigned,
 )
 
+from .constants import BACnetConstants
 from .exceptions import (
     DeviceNotFoundByAddressError,
     DeviceNotFoundError,
@@ -282,17 +283,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
         try:
             device = BACnetDevice.objects.get(device_id=device_id)
             readable_points = device.points.filter(
-                object_type__in=[
-                    "analogInput",
-                    "analogOutput",
-                    "analogValue",
-                    "binaryInput",
-                    "binaryOutput",
-                    "binaryValue",
-                    "multiStateInput",
-                    "multiStateOutput",
-                    "multiStateValue",
-                ]
+                object_type__in=BACnetConstants.READABLE_OBJECT_TYPES
             )
             logger.debug(
                 f"✓ Reading values from {readable_points.count()}"
