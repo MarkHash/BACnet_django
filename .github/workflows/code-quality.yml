@@ -36,7 +36,7 @@ jobs:
 
     - name: Verify Jest installation
       run: |
-      npx jest --version
+        npx jest --version
 
     - name: Run Django tests
       run: |
