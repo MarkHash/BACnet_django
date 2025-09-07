@@ -19,7 +19,7 @@ jobs:
         python-version: '3.13.6'
 
     - name: set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
@@ -28,25 +28,26 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install -r requirements-test.txt
 
     - name: Install JavaScript dependencies
       run: |
-        npm install
+        npm ci --only=dev
+
+    - name: Verify Jest installation
+      run: |
+      npx jest --version
 
     - name: Run Django tests
       run: |
         python manage.py test discovery --verbosity=2
-    
-    - name: Run JavaScript Tests
-      run: |
-        npm test
 
     - name: Run Javascript Tests with Coverage
       run: |
         npm run test:coverage
 
     - name: Upload JavaScript Coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage/lcov.info
         flags: javascript
