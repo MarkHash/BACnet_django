@@ -52,14 +52,6 @@ jobs:
         file: ./coverage/lcov.info
         flags: javascript
         name: javascript-coverage
-    
-    - name: Publish Test Results
-      uses: dorny/test-reporter@v1
-      if: always()
-      with:
-        name: JavaScript Tests
-        path: coverage/junit.xml
-        reporter: jest-junit
 
     - name: Install code quality tools
       run: |
