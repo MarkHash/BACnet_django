@@ -18,6 +18,15 @@ jobs:
       with:
         python-version: '3.13.6'
 
+    - name: Install dependencies
+      run: |
+        python -m pip instal --upgrade pip
+        pip install -r requirements-test.txt
+
+    - name: Run Django tests
+      run: |
+      python manage.py test discovery --verbosity=2
+
     - name: Install code quality tools
       run: |
         pip install flake8 black isort
