@@ -67,18 +67,12 @@ jobs:
 
     - name: Run Django migrations
       run: |
-        python manage.py migrate --verbosity=2
-      env:
-        DATABASE_URL: postgresql://postgres:postgres_test_password@localhost:5432/bacnet_django_test
-        DJANGO_SETTINGS_MODULE: bacnet_project.settings
-
+        python manage.py migrate --verbosity=2 --settings=bacnet_project.ci_setings
+      
     - name: Run Django tests
       run: |
-        python manage.py test discovery --verbosity=2
-      env:
-        DATABASE_URL: postgresql://postgres:postgres_test_password@localhost:5432/bacnet_django_test
-        DJANGO_SETTINGS_MODULE: bacnet_project.settings
-
+        python manage.py test discovery --verbosity=2 --settings=bacnet_project.ci_settings
+      
     - name: Run Javascript Tests with Coverage
       run: |
         npm run test:coverage
