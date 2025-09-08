@@ -67,7 +67,7 @@ jobs:
 
     - name: Run Django migrations
       run: |
-        python manage.py migrate --verbosity=2 --settings=bacnet_project.ci_setings
+        python manage.py migrate --verbosity=2 --settings=bacnet_project.ci_settings
       
     - name: Run Django tests
       run: |
