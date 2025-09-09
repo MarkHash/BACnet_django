@@ -4,7 +4,6 @@ from .models import (
     AlarmHistory,
     BACnetDevice,
     BACnetPoint,
-    BACnetReading,
     DeviceStatusHistory,
     MaintenanceLog,
     SensorReadingStats,
@@ -52,18 +51,6 @@ class BACnetPointAdmin(admin.ModelAdmin):
         ),
         ("Timestamps", {"fields": ("created",), "classes": ("collapse",)}),
     )
-
-
-@admin.register(BACnetReading)
-class BACnetReadingAdmin(admin.ModelAdmin):
-    list_display = ["point", "value", "read_time", "is_anomaly", "data_quality_score"]
-    list_filter = ["is_anomaly", "read_time", "point__device"]
-    search_fields = ["point__identifier", "value"]
-    readonly_fields = ["read_time"]
-    date_hierarchy = "read_time"
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related("point__device")
 
 
 admin.site.register(DeviceStatusHistory)

@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -146,6 +147,11 @@ class BACnetReading(models.Model):
         max_length=50, blank=True, help_text="Reading quality (good, bad, uncertain)"
     )
     priority = models.IntegerField(null=True, blank=True, help_text="Reading priority")
+    is_anomaly = models.BooleanField(default=False)
+    anomaly_score = models.FloatField(null=True, blank=True)
+    data_quality_score = models.FloatField(
+        default=1.0, validators=[MinValueValidator(0.0), MaxValueValidator(1.0)]
+    )
 
     class Meta:
         ordering = ["-read_time"]
@@ -166,3 +172,179 @@ class BACnetReading(models.Model):
         if self.units:
             return f"{self.value} {self.units}"
         return self.value
+
+
+class DeviceStatusHistory(models.Model):
+    device = models.ForeignKey(
+        BACnetDevice, on_delete=models.CASCADE, related_name="status_history"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_online = models.BooleanField()
+    response_time_ms = models.FloatField(null=True, blank=True)
+    successful_reads = models.IntegerField(default=0)
+    failed_reads = models.IntegerField(default=0)
+    packet_loss_percent = models.FloatField(
+        default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(100.0)]
+    )
+
+    class Meta:
+        ordering = ["-timestamp"]
+        verbose_name = "Device Status History"
+        verbose_name_plural = "Device Status Histories"
+        indexes = [
+            models.Index(fields=["device", "-timestamp"]),
+        ]
+
+    def __str__(self):
+        status = "Online" if self.is_online else "Offline"
+        return f"{self.device} - {status} at {self.timestamp}"
+
+
+class SensorReadingStats(models.Model):
+    AGGREGATION_CHOICES = [
+        ("hourly", "Hourly"),
+        ("daily", "Daily"),
+        ("weekly", "Weekly"),
+        ("monthly", "Monthly"),
+    ]
+
+    point = models.ForeignKey(
+        BACnetPoint, on_delete=models.CASCADE, related_name="statistics"
+    )
+
+    aggregation_type = models.CharField(max_length=10, choices=AGGREGATION_CHOICES)
+    period_start = models.DateTimeField()
+    period_end = models.DateTimeField()
+
+    avg_value = models.FloatField(null=True, blank=True)
+    min_value = models.FloatField(null=True, blank=True)
+    max_value = models.FloatField(null=True, blank=True)
+    std_dev = models.FloatField(null=True, blank=True)
+
+    reading_count = models.IntegerField(default=0)
+    null_reading_count = models.IntegerField(default=0)
+    anomaly_count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ["-period_start"]
+        unique_together = ["point", "aggregation_type", "period_start"]
+        verbose_name = "Sensor Reading Statistics"
+        verbose_name_plural = "Sensor Reading Statistics"
+        indexes = [
+            models.Index(fields=["point", "aggregation_type", "-period_start"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.point} - {self.aggregation_type} stats for "
+            f"{self.period_start.date()}"
+        )
+
+
+class AlarmHistory(models.Model):
+    ALARM_TYPE_CHOICES = [
+        ("high_limit", "High Limit Exceeded"),
+        ("low_limit", "Low Limit Exceeded"),
+        ("communication_failure", "Communication Failure"),
+        ("sensor_fault", "Sensor Fault"),
+        ("anomaly_detected", "Anomaly Detected"),
+        ("maintenance_due", "Maintenance Due"),
+    ]
+
+    SEVERITY_CHOICES = [
+        ("low", "Low"),
+        ("medium", "Medium"),
+        ("high", "High"),
+        ("critical", "Critical"),
+    ]
+
+    device = models.ForeignKey(
+        BACnetDevice, on_delete=models.CASCADE, related_name="alarms"
+    )
+
+    point = models.ForeignKey(
+        BACnetPoint,
+        on_delete=models.CASCADE,
+        related_name="alarms",
+        null=True,
+        blank=True,
+    )
+
+    alarm_type = models.CharField(max_length=30, choices=ALARM_TYPE_CHOICES)
+    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES)
+
+    triggered_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    trigger_value = models.CharField(max_length=100, blank=True)
+    threshold_value = models.CharField(max_length=100, blank=True)
+    message = models.TextField()
+
+    class Meta:
+        ordering = ["-triggered_at"]
+        verbose_name = "Alarm History"
+        verbose_name_plural = "Alarm Histories"
+        indexes = [
+            models.Index(fields=["device", "-triggered_at"]),
+            models.Index(fields=["is_active", "severity"]),
+        ]
+
+    def __str__(self):
+        status = "Active" if self.is_active else "Resolved"
+        return f"{self.device} - {self.alarm_type} ({status})"
+
+    def resolve(self):
+        self.is_active = False
+        self.resolved_at = timezone.now()
+        self.save()
+
+
+class MaintenanceLog(models.Model):
+    MAINTENANCE_TYPE_CHOICES = [
+        ("preventive", "Preventive Maintenance"),
+        ("corrective", "Corrective Maintenance"),
+        ("calibration", "Sensor Calibration"),
+        ("replacement", "Component Replacement"),
+        ("software_update", "Software Update"),
+    ]
+
+    device = models.ForeignKey(
+        BACnetDevice, on_delete=models.CASCADE, related_name="maintenance_logs"
+    )
+
+    maintenance_type = models.CharField(max_length=20, choices=MAINTENANCE_TYPE_CHOICES)
+    scheduled_date = models.DateTimeField()
+    completed_date = models.DateTimeField(null=True, blank=True)
+
+    description = models.TextField()
+    technicial_notes = models.TextField(blank=True)
+    predicted_failure_date = models.DateTimeField(null=True, blank=True)
+    confidence_score = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+    )
+
+    is_completed = models.BooleanField(default=False)
+    cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        ordering = ["-scheduled_date"]
+        verbose_name = "Maintenance Log"
+        verbose_name_plural = "Maintenance Logs"
+        indexes = [
+            models.Index(fields=["device", "-scheduled_date"]),
+            models.Index(fields=["is_completed"]),
+        ]
+
+    def __str__(self):
+        status = "Completed" if self.is_completed else "Scheduled"
+        return f"{self.device} - {self.maintenance_type} ({status})"
+
+    def mark_completed(self, notes=""):
+        self.is_completed = True
+        self.completed_date = timezone.now()
+        if notes:
+            self.technician_notes = notes
+        self.save()
