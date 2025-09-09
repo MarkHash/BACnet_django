@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import BACnetDevice, BACnetPoint
+from .models import (
+    AlarmHistory,
+    BACnetDevice,
+    BACnetPoint,
+    DeviceStatusHistory,
+    MaintenanceLog,
+    SensorReadingStats,
+)
 
 
 # Register your models here.
@@ -44,3 +51,9 @@ class BACnetPointAdmin(admin.ModelAdmin):
         ),
         ("Timestamps", {"fields": ("created",), "classes": ("collapse",)}),
     )
+
+
+admin.site.register(DeviceStatusHistory)
+admin.site.register(SensorReadingStats)
+admin.site.register(AlarmHistory)
+admin.site.register(MaintenanceLog)

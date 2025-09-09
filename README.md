@@ -276,3 +276,50 @@ BACnet_django/
 ## Support
 
 [Add support contact information here]
+
+
+## How to develop on a new machine 
+Basic Requirements on the New Machine
+
+  Install Docker:
+  # On macOS (with Homebrew)
+  brew install docker docker-compose
+
+  # On Ubuntu/Linux
+  sudo apt update
+  sudo apt install docker.io docker-compose
+
+  # On Windows
+  # Download Docker Desktop from docker.com
+
+  Method 1: Git Clone (Recommended)
+
+  On the new machine:
+  # Clone your repository
+  git clone https://github.com/your-username/BACnet_django.git
+  cd BACnet_django
+
+  # Start all services
+  docker-compose up --build
+
+  # In another terminal, run migrations
+  docker-compose exec web python manage.py migrate
+
+  # Create superuser
+  docker-compose exec web python manage.py createsuperuser
+
+  Method 2: Share Docker Images (Advanced)
+
+  Build and push images to Docker Hub:
+  # On your machine, build and tag the image
+  docker build -t your-dockerhub-username/bacnet-django .
+  docker push your-dockerhub-username/bacnet-django
+
+  # Update docker-compose.yml to use the image
+  # Instead of: build: .
+  # Use: image: your-dockerhub-username/bacnet-django
+
+  On the new machine:
+  # Just pull and run
+  docker-compose pull
+  docker-compose up

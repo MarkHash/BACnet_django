@@ -1,6 +1,7 @@
 import logging
 import traceback
-from datetime import datetime
+from datetime import timedelta
+from statistics import mean, stdev
 
 from bacpypes.apdu import ReadPropertyRequest, WhoIsRequest
 from bacpypes.app import BIPSimpleApplication
@@ -16,6 +17,7 @@ from bacpypes.primitivedata import (
     Real,
     Unsigned,
 )
+from django.utils import timezone
 
 from .constants import BACnetConstants
 from .exceptions import (
@@ -23,7 +25,13 @@ from .exceptions import (
     DeviceNotFoundError,
     PointNotFoundError,
 )
-from .models import BACnetDevice, BACnetPoint, BACnetReading
+from .models import (
+    AlarmHistory,
+    BACnetDevice,
+    BACnetPoint,
+    BACnetReading,
+    DeviceStatusHistory,
+)
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -32,8 +40,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 _debug = 0
 _log = ModuleLogger(globals())
-# discovered_devices = {}
-# device_points = {}
 
 
 @bacpypes_debugging
@@ -69,6 +75,13 @@ class DjangoBACnetClient(BIPSimpleApplication):
                 device.address = str(apdu.pduSource)
                 device.vendor_id = vendor_id
                 device.mark_seen()
+                DeviceStatusHistory.objects.create(
+                    device=device,
+                    is_online=True,
+                    successful_reads=1,
+                    failed_reads=0,
+                    packet_loss_percent=0.0,
+                )
 
             logger.debug(f"✓ Device {device_id} saved to database: {device.address}")
 
@@ -145,6 +158,66 @@ class DjangoBACnetClient(BIPSimpleApplication):
         except BACnetDevice.DoesNotExist:
             raise DeviceNotFoundByAddressError(device_address)
 
+    def _calculate_data_quality(self, value, point):
+        try:
+            float_value = float(value)
+            if float_value < 0 or float_value > 100000:
+                return 0.5
+            return 1.0
+        except (ValueError, TypeError):
+            return 0.7
+
+    def _detect_anomaly(self, value, point):
+        try:
+            float_value = float(value)
+            recent_readings = point.readings.filter(
+                read_time__gte=timezone.now() - timedelta(hours=24)
+            ).values_list("value", flat=True)
+
+            if len(recent_readings) < 5:
+                return False
+
+            values = [float(v) for v in recent_readings if v.replace(".", "").isdigit()]
+            if len(values) < 3:
+                return False
+
+            avg = mean(values)
+            std = stdev(values) if len(values) > 1 else 0
+
+            return abs(float_value - avg) > (3 * std)
+        except Exception:
+            return False
+
+    def _calculate_anomaly_score(self, value, point):
+        try:
+            float_value = float(value)
+            recent_readings = point.readings.filter(
+                read_time__gte=timezone.now() - timedelta(hours=24)
+            ).values_list("value", flat=True)
+
+            values = [float(v) for v in recent_readings if v.replace(".", "").isdigit()]
+
+            if len(values) < 3:
+                return 0.5
+
+            avg = mean(values)
+            std = stdev(values) if len(values) > 1 else 1
+
+            deviation = abs(float_value - avg) / (std if std > 0 else 1)
+            return min(deviation / 5.0, 1.0)
+        except Exception:
+            return 0.5
+
+    def _create_anomaly_alarm(self, device, point, value):
+        AlarmHistory.objects.create(
+            device=device,
+            point=point,
+            alarm_type="anomaly_detected",
+            severity="medium",
+            trigger_value=str(value),
+            message=f"Anomalous reading detected for {point.identifier}: {value}",
+        )
+
     def _handle_present_value_response(self, apdu, device):
         try:
             object_type = apdu.objectIdentifier[0]
@@ -161,7 +234,19 @@ class DjangoBACnetClient(BIPSimpleApplication):
             # print(f"Present_value: {present_value}, object_type: {object_type}")
 
             point.update_value(present_value)
-            BACnetReading.objects.create(point=point, value=str(present_value))
+            reading = BACnetReading.objects.create(
+                point=point,
+                value=str(present_value),
+                data_quality_score=self._calculate_data_quality(present_value, point),
+                is_anomaly=self._detect_anomaly(present_value, point),
+            )
+            if reading.is_anomaly:
+                reading.anomaly_score = self._calculate_anomaly_score(
+                    present_value, point
+                )
+                reading.save()
+
+                self._create_anomaly_alarm(device, point, present_value)
 
             logger.debug(f"✓ Updated {point.identifier} - {present_value}")
 
@@ -370,7 +455,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
             request.pduDestination = GlobalBroadcast()
 
             self.request(request)
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            timestamp = timezone.now().strftime("%H:%M:%S")
             logger.debug(f"✓ Sent WhoIs broadcast at {timestamp}")
 
             if self.callback:
