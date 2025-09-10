@@ -135,8 +135,11 @@ class BACnetReading(models.Model):
 
     value = models.CharField(max_length=100, help_text="Sensor reading value")
     units = models.CharField(max_length=50, blank=True, help_text="Engineering units")
+    # read_time = models.DateTimeField(
+    #     auto_now_add=True, help_text="When reading was taken"
+    # )
     read_time = models.DateTimeField(
-        auto_now_add=True, help_text="When reading was taken"
+        default=timezone.now, help_text="When reading was taken"
     )
 
     quality = models.CharField(

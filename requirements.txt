@@ -33,3 +33,9 @@ sqlparse==0.5.3
 tzdata==2025.2
 virtualenv==20.34.0
 psycopg2-binary==2.9.9
+dj-database-url==2.1.0
+redis==5.0.1
+gunicorn==21.2.0
+whitenoise==6.6.0
+celery==5.3.4
+flower==2.0.1
