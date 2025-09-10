@@ -1,0 +1,124 @@
+import logging
+from datetime import timedelta
+
+from celery import shared_task
+from django.utils import timezone
+
+from .models import BACnetPoint, BACnetReading, SensorReadingStats
+
+logger = logging.getLogger(__name__)
+
+
+@shared_task
+def calculate_hourly_stats():
+    logger.info("Starting hourly stats calculation...")
+
+    now = timezone.now().replace(minute=0, second=0, microsecond=0)
+    start_time = now - timedelta(hours=1)
+
+    points = BACnetPoint.objects.all()
+    stats_created = 0
+
+    for point in points:
+        stats_created += _calculate_point_stats(point, "hourly", start_time, now)
+
+    logger.info(f"Created {stats_created} hourly stats records")
+    return {"created": stats_created, "period": "hourly", "time": str(now)}
+
+
+@shared_task
+def calculate_daily_stats():
+    logger.info("Starting daily stats calculation...")
+
+    today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    start_time = today - timedelta(days=1)
+
+    points = BACnetPoint.objects.all()
+    stats_created = 0
+
+    for point in points:
+        stats_created += _calculate_point_stats(point, "daily", start_time, today)
+
+    logger.info(f"Created {stats_created} daily stats records")
+    return {"created": stats_created, "period": "daily", "time": str(today)}
+
+
+def _calculate_point_stats(point, aggregation_type, start_time, end_time):
+    existing_stats = SensorReadingStats.objects.filter(
+        point=point, aggregation_type=aggregation_type, period_start=start_time
+    ).exists()
+
+    if existing_stats:
+        logger.debug(f"Stats already exist for {point} {aggregation_type} {start_time}")
+        return 0
+
+    readings = BACnetReading.objects.filter(
+        point=point, read_time__gte=start_time, read_time__lt=end_time
+    )
+
+    if not readings.exists():
+        logger.debug(
+            f"No readings found for {point} in period {start_time} to {end_time}"
+        )
+        return 0
+
+    numeric_readings = []
+    null_count = 0
+    anomaly_count = 0
+
+    for reading in readings:
+        if reading.is_anomaly:
+            anomaly_count += 1
+
+        try:
+            numeric_value = float(reading.value)
+            numeric_readings.append(numeric_value)
+        except (ValueError, TypeError):
+            null_count += 1
+
+    if not numeric_readings:
+        logger.debug(f"No numeric readings found for {point}")
+        return 0
+
+    avg_value = sum(numeric_readings) / len(numeric_readings)
+    min_value = min(numeric_readings)
+    max_value = max(numeric_readings)
+    if len(numeric_readings) > 1:
+        variance = sum((x - avg_value) ** 2 for x in numeric_readings) / len(
+            numeric_readings
+        )
+        std_dev = variance**0.5
+    else:
+        std_dev = 0.0
+
+    SensorReadingStats.objects.create(
+        point=point,
+        aggregation_type=aggregation_type,
+        period_start=start_time,
+        period_end=end_time,
+        avg_value=avg_value,
+        min_value=min_value,
+        max_value=max_value,
+        std_dev=std_dev,
+        reading_count=len(numeric_readings),
+        null_reading_count=null_count,
+        anomaly_count=anomaly_count,
+    )
+
+    logger.debug(f"Created stats for {point} {aggregation_type} {start_time}")
+    return 1
+
+
+@shared_task
+def calculate_point_stats_manual(point_id, aggregation_type="hourly", hours_back=1):
+    try:
+        point = BACnetPoint.objects.get(id=point_id)
+        now = timezone.now().replace(minute=0, second=0, microsecond=0)
+        start_time = now - timedelta(hours=hours_back)
+
+        result = _calculate_point_stats(point, aggregation_type, start_time, now)
+        return {"point": str(point), "created": result, "period": aggregation_type}
+
+    except BACnetPoint.DoesNotExist:
+        logger.error(f"Point with id {point_id} not found")
+        return {"error": "Point not found"}

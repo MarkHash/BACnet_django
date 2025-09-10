@@ -46,6 +46,19 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
+  celery:
+    build: .
+    command: celery -A bacnet_project worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
+    env_file:
+      - .env
+
 volumes:
   postgres_data:
   redis_data:
