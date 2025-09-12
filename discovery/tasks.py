@@ -5,6 +5,7 @@ from celery import shared_task
 from django.utils import timezone
 
 from .models import BACnetPoint, BACnetReading, SensorReadingStats
+from .services import BACnetService
 
 logger = logging.getLogger(__name__)
 
@@ -122,3 +123,19 @@ def calculate_point_stats_manual(point_id, aggregation_type="hourly", hours_back
     except BACnetPoint.DoesNotExist:
         logger.error(f"Point with id {point_id} not found")
         return {"error": "Point not found"}
+
+
+@shared_task
+def discover_devices_task(mock_mode=False):
+    try:
+        service = BACnetService()
+        return service.discover_devices(mock_mode=mock_mode)
+    except Exception as e:
+        logger.error(f"Device discovery task failed: {e}")
+        return {"error": str(e)}
+
+
+@shared_task
+def collect_readings_task():
+    service = BACnetService()
+    return service.collect_all_readings()
