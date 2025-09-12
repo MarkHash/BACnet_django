@@ -59,6 +59,19 @@ services:
     env_file:
       - .env
 
+  beat:
+    build: .
+    command: celery -A bacnet_project beat --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
+    env_file:
+      - .env
+
 volumes:
   postgres_data:
   redis_data:

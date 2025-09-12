@@ -64,4 +64,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "discovery.tasks.calculate_daily_stats",
         "schedule": 86400.0,
     },
+    "discover-devices": {
+        "task": "discovery.tasks.discover_devices_task",
+        "schedule": 1800.0,
+        "kwargs": {"mock_mode": True},
+    },
+    "collect-readings": {
+        "task": "discovery.tasks.collect_readings_task",
+        "schedule": 300.0,
+    },
 }
