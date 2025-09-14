@@ -233,7 +233,7 @@ class TestAPIEndpointIntegration(BaseTestCase):
         mock_service = Mock()
         mock_ensure_client.return_value = mock_service
 
-        url = reverse("discovery:get_device_value_api")
+        url = reverse("discovery:get_device_value_api", args=[self.device.device_id])
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)

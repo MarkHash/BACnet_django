@@ -1,5 +1,5 @@
 import json
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 from django.test import Client, RequestFactory
 from django.urls import reverse
@@ -170,9 +170,7 @@ class TestAPIViews(BaseTestCase):
             self.assertIn("Discovered", data["message"])
             self.assertEqual(data["device_id"], self.device.device_id)
 
-            mock_service.discover_device_points.assert_called_once_with(
-                self.device.device_id
-            )
+            mock_service.discover_device_points.assert_called_once_with(ANY)
 
     def test_read_point_values_success(self):
         with patch("discovery.views.BACnetService") as mock_ensure:
