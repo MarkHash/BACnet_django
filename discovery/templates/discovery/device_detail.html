@@ -86,9 +86,9 @@
                     <span class="visually-hidden">Loading...</span>
                 </div>
                 <h5>Reading Device Points...</h5>
-                <p class="text-muted">Descovering BACnet objects, this may take afew seconds.</p>
+                <p class="text-muted">Discovering BACnet objects, this may take a few seconds.</p>
                 <div class="progress mt-3">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" stype="width: 100%"></div>
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
                 </div>
             </div>
         </div>
@@ -114,7 +114,7 @@
                     <div class="row" id="sensor-values-container">
                         {% for point in points %}
                             {% if point.is_readable %}
-                            <div class="col-md4 col-lg-3 mb-3" data-point-id="{{ point.id }}">
+                            <div class="col-md-4 col-lg-3 mb-3" data-point-id="{{ point.id }}">
                                 <div class="card sensor-card">
                                     <div class="card-body text-center">
                                         <h6 class="card-title">
@@ -133,7 +133,7 @@
                                         </div>
                                         <small class="text-muted">{{ point.object_type|capfirst }} {{ point.instance_number }}</small>
                                         <br>
-                                        <button class="btn btn-sm btn-outline-primary mt2 read-single-point"
+                                        <button class="btn btn-sm btn-outline-primary mt-2 read-single-point"
                                                 data-device-id="{{ device.device_id }}"
                                                 data-object-type="{{ point.object_type }}"
                                                 data-instance="{{ point.instance_number }}">
@@ -164,16 +164,16 @@
                         <h6>{{ object_type|title }}</h6>
                         <span class="badge bg-secondary">{{ type_points|length }}</span>
                     </div>
-                    <div class="card-body" stype="max-height: 300px; overflow-y: auto;">
+                    <div class="card-body" style="max-height: 300px; overflow-y: auto;">
                         <div class="table-responsive">
                             <table class="table table-sm">
-                                <thread>
+                                <thead>
                                     <tr>
                                         <th>Instance</th>
                                         <th>Identifier</th>
                                         <th>Name</th>
                                     </tr>
-                                </thread>
+                                </thead>
                                 <tbody>
                                     {% for point in type_points %}
                                     <tr>
@@ -205,13 +205,13 @@
                 <div class="card-body text-center py-5">
                     {% if device.points_read %}
                         <div class="mb-3">
-                            <i class="fas fa-exclamation-triangle" stype="font-size: 3rem; color: #ffc107"></i>
+                            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ffc107"></i>
                         </div>
                         <h5 class="text-muted">No Points Found</h5>
                         <p class="text-muted">This device has no BACnet objects or they couldn't be read.</p>
                     {% else %}
                         <div class="mb-3">
-                            <i class="fas fa-book-open" stype="font-size: 3rem; color: #ccc;"></i>
+                            <i class="fas fa-book-open" style="font-size: 3rem; color: #ccc;"></i>
                         </div>
                         <h5 class="text-muted">Points Not Read yet</h5>
                         <p class="text-muted">Click "Read Points" to discover the BACnet objects in this device.</p>
@@ -392,9 +392,9 @@
             setTimeout(() => {
                 clearInterval(checkInterval);
                 document.getElementById('loading-points-section').innerHTML = `
-                    <div class=alert alert-warning">
+                    <div class="alert alert-warning">
                         <h5>Points Discovery Timeout</h5>
-                        <p>Unable to discover points automatically. you can try manually using the "Read Points" button above.</p>
+                        <p>Unable to discover points automatically. You can try manually using the "Read Points" button above.</p>
                     </div>
                 `;
             }, 30000);
@@ -413,7 +413,7 @@
                 .then(response => {
                     if (response.success) {
                         updateSensorDisplay(response.points);
-                        document.getElementById('values-last-updated').textContent = 'Last updated:' + new Date().toLocaleString();
+                        document.getElementById('values-last-updated').textContent = 'Last updated: ' + new Date().toLocaleString();
                     } else {
                         showAlert('Error refreshing values: ' + response.message, 'warning');
                     }

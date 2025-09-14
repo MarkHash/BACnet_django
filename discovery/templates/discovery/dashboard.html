@@ -1,6 +1,6 @@
 {% extends 'discovery/base.html' %}
 
-{%block title %} Dashboard - BACnet Discovery{% endblock %}
+{% block title %} Dashboard - BACnet Discovery{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -58,7 +58,7 @@
                 </button>
 
                 <button id="clear-btn" class="btn btn-warning btn-lg me-3">
-                    <span class="spinner-border spinner-bordersm d-none" role="status"></span>
+                    <span class="spinner-border spinner-border-sm d-none" role="status"></span>
                     🗑️ Clear All Devices
                 </button>
 
@@ -130,7 +130,7 @@
                     {% else %}
                         <div class="text-center py-5">
                             <div class="mb-3">
-                                <i class="fas fa-search" stry="font-size: 3rem; color: #ccc;"></i>
+                                <i class="fas fa-search" style="font-size: 3rem; color: #ccc;"></i>
                             </div>
                             <h5 class="text-muted">No devices discovered yet</h5>
                             <p class="text-muted">Click "Discover Devices" to start scanning your network</p>
