@@ -267,7 +267,7 @@ def read_single_point_value(request, device_id, object_type, instance_number):
     return JsonResponse({"success": False, "message": "Invalid request"})
 
 
-def get_device_value_api(device_id):
+def get_device_value_api(request, device_id):
     device = get_object_or_404(BACnetDevice, device_id=device_id)
     points_data = []
     for point in device.points.all().order_by("object_type", "instance_number"):
