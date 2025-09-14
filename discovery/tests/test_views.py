@@ -8,7 +8,6 @@ from discovery.exceptions import ConfigurationError
 from discovery.views import (
     _build_device_context,
     _organise_points_by_type,
-    _trigger_auto_refresh_if_needed,
     dashboard,
     device_detail,
 )
@@ -105,22 +104,6 @@ class TestViewHelperFunctions(BaseTestCase):
         super().setUp()
         self.device = BACnetDeviceFactory(points_read=True)
         self.point = BACnetPointFactory(device=self.device)
-
-    @patch("discovery.views.ensure_bacnet_client")
-    @patch("discovery.views._should_refresh_readings")
-    def test_trigger_auto_refresh_integration(
-        self, mock_should_refresh, mock_ensure_client
-    ):
-        mock_client = Mock()
-        mock_ensure_client.return_value = mock_client
-        mock_should_refresh.return_value = True
-
-        points = self.device.points.all()
-        _trigger_auto_refresh_if_needed(self.device, points)
-
-        mock_ensure_client.assert_called_once()
-        mock_should_refresh.assert_called_once()
-        mock_client.read_all_point_values.assert_called_once_with(self.device.device_id)
 
     def test_organise_points_by_type_integration(self):
         BACnetPointFactory(device=self.device, object_type="analogOutput")

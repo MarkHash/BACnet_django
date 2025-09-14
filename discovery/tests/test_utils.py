@@ -1,5 +1,5 @@
 from datetime import timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from django.test import TestCase
 from django.utils import timezone
@@ -9,7 +9,6 @@ from discovery.views import (
     _build_device_context,
     _organise_points_by_type,
     _should_refresh_readings,
-    _trigger_auto_refresh_if_needed,
 )
 
 from .test_base import BACnetDeviceFactory, BACnetPointFactory, BaseTestCase
@@ -119,43 +118,3 @@ class TestBuildDeviceContext(BaseTestCase):
 
         self.assertFalse(result["points_loaded_recently"])
         self.assertEqual(result["point_count"], 0)
-
-
-class TestTriggerAutoRefreshIntegration(BaseTestCase):
-    @patch("discovery.views.ensure_bacnet_client")
-    @patch("discovery.views._should_refresh_readings")
-    def test_trigger_auto_refresh_success(
-        self, mock_should_refresh, mock_ensure_client
-    ):
-        mock_client = Mock()
-        mock_ensure_client.return_value = mock_client
-        mock_should_refresh.return_value = True
-
-        # self.device.points_read = True
-        # self.device.save()
-
-        points = self.device.points.all()
-
-        _trigger_auto_refresh_if_needed(self.device, points)
-
-        mock_ensure_client.assert_called_once()
-        mock_should_refresh.assert_called_once()
-        mock_client.read_all_point_values.assert_called_once_with(self.device.device_id)
-
-    @patch("discovery.views.ensure_bacnet_client")
-    def test_trigger_auto_refresh_no_points(self, mock_ensure_client):
-        device_no_points = BACnetDeviceFactory()
-        empty_points = device_no_points.points.none()
-
-        _trigger_auto_refresh_if_needed(device_no_points, empty_points)
-
-        mock_ensure_client.assert_not_called()
-
-    @patch("discovery.views.ensure_bacnet_client")
-    def test_trigger_auto_refresh_points_not_read(self, mock_ensure_client):
-        device_not_read = BACnetDeviceFactory(points_read=False)
-        points = device_not_read.points.all()
-
-        _trigger_auto_refresh_if_needed(device_not_read, points)
-
-        mock_ensure_client.assert_not_called()
