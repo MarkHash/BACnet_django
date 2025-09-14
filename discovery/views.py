@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from .bacnet_client import DjangoBACnetClient, clear_all_devices
+from .constants import BACnetConstants
 from .exceptions import (
     BACnetError,
     ConfigurationError,
@@ -117,7 +118,7 @@ def device_detail(request, device_id):
                 if (
                     not latest_reading
                     or (timezone.now() - latest_reading.value_last_read).total_seconds()
-                    > 300
+                    > BACnetConstants.REFRESH_THRESHOLD_SECONDS
                 ):
                     client.read_all_point_values(device.device_id)
                     logger.debug(
@@ -333,7 +334,7 @@ def get_point_history_api(request, point_id):
     try:
         point = get_object_or_404(BACnetPoint, id=point_id)
 
-        readings = point.readings.all()[:50]
+        readings = point.readings.all()[: BACnetConstants.MAX_READING_LIMIT]
         readings_data = []
 
         for reading in readings:

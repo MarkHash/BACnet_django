@@ -252,11 +252,11 @@
             showAlert('Points are being read in the background...', 'info');
             const checkInterval = setInterval(() => {
                 checkForNewPoints();
-            }, 2000);
+            }, TIMEOUTS.BUTTON_RESET);
             setTimeout(() => {
                 clearInterval(checkInterval);
                 showAlert('Points reading may still be in progress. Try refreshing the page.', 'warning');
-            }, 30000);
+            }, TIMEOUTS.DISCOVERY_TIMEOUT);
         }
         document.getElementById('read-points-btn').addEventListener('click', function() {
             const btn = this;
@@ -285,7 +285,7 @@
                         showAlert('Page will refresh in 5 seconds to show discovered points...', 'info');
                         setTimeout(() => {
                             location.reload();
-                        }, 5000);
+                        }, TIMEOUTS.PAGE_RELOAD);
                     } else {
                         showAlert(response.message, 'danger');
                     }
@@ -299,7 +299,7 @@
                         btn.disabled = false;
                         spinner.classList.add('d-none');
                         btn.innerHTML = originalText;
-                    }, 2000);
+                    }, TIMEOUTS.BUTTON_RESET);
                 });
         });
 
@@ -321,7 +321,7 @@
                         showAlert('Sensor values will update in a few seconds...', 'info');
                         setTimeout(() => {
                             refreshSensorValues();
-                        }, 3000);
+                        }, TIMEOUTS.POINT_CHECK_INTERVAL);
                     } else {
                         showAlert(response.message, "danger");
                     }
@@ -358,7 +358,7 @@
                         showAlert(response.message, 'info');
                         setTimeout(() => {
                             refreshSensorValues();
-                        }, 2000);
+                        }, TIMEOUTS.BUTTON_RESET);
                     } else {
                         showAlert(response.message, 'danger');
                     }
@@ -388,7 +388,7 @@
         if (document.getElementById('loading-points-section')) {
             const checkInterval = setInterval(() => {
                checkForNewPoints(); 
-            }, 3000);
+            }, TIMEOUTS.POINT_CHECK_INTERVAL);
             setTimeout(() => {
                 clearInterval(checkInterval);
                 document.getElementById('loading-points-section').innerHTML = `
@@ -397,7 +397,7 @@
                         <p>Unable to discover points automatically. You can try manually using the "Read Points" button above.</p>
                     </div>
                 `;
-            }, 30000);
+            }, TIMEOUTS.DISCOVERY_TIMEOUT);
         }
 
         function refreshSensorValues() {
@@ -470,7 +470,7 @@
             });
             showAlert('Sensor values refreshed!', 'success');
         }
-        setInterval(refreshSensorValues, 30000);
+        setInterval(refreshSensorValues, TIMEOUTS.REFRESH_INTERVAL);
         
     });
 </script>

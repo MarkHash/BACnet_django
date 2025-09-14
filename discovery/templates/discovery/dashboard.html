@@ -158,7 +158,7 @@
                         showAlert(response.message, 'success');
                         setTimeout(() => {
                             location.reload();
-                        }, 3000);
+                        }, TIMEOUTS.PAGE_RELOAD);
                     } else {
                         showAlert(response.message, 'danger');
                     }
@@ -209,19 +209,19 @@
                                 showAlert('Points discovered! Redirecting...', 'success');
                                 setTimeout(() => {
                                     window.location.href = this.href + '?reading_points=true';
-                                }, 1000);
+                                }, TIMEOUTS.REDIRECT_DELAY);
                             } else {
                                 showAlert(response.message, 'danger');
                                 setTimeout(() => {
                                     window.location.href = this.href + '?reading_points=true';
-                                }, 1000)
+                                }, TIMEOUTS.REDIRECT_DELAY)
                             }
                         })
                         .catch(error => {
                             showAlert('Error loading points, redirecting anyway...', 'warning');
                             setTimeout(() => {
                                window.location.href = this.href + '?reading_points=true'; 
-                            }, 1000);
+                            }, TIMEOUTS.REDIRECT_DELAY);
                         })
                         .finally(() => {
                             this.innerHTML = originalText;
@@ -256,7 +256,7 @@
 
         setInterval(() => {
             document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
-        }, 30000);
+        }, TIMEOUTS.REFRESH_INTERVAL);
 
     });
 </script>
