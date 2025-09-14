@@ -321,60 +321,19 @@
             }
         });
 
-        function checkForNewPoints() {
-            const deviceId = document.getElementById('read-values-btn').getAttribute("data-device-id");
-            const url = `/api/device-values/${deviceId}/`;
-
-            apiCall(url, 'GET')
-                .then(response => {
-                    if (response.success && response.total_points > 0) {
-                        location.reload();
-                    }
-                })
-                .catch(error => {
-                    console.log('Still waiting for points');
-                });
-        }
-
-        if (document.getElementById('loading-points-section')) {
-            const checkInterval = setInterval(() => {
-               checkForNewPoints(); 
-            }, TIMEOUTS.POINT_CHECK_INTERVAL);
-            setTimeout(() => {
-                clearInterval(checkInterval);
-                document.getElementById('loading-points-section').innerHTML = `
-                    <div class="alert alert-warning">
-                        <h5>Points Discovery Timeout</h5>
-                        <p>Unable to discover points automatically. You can try manually using the "Read Points" button above.</p>
-                    </div>
-                `;
-            }, TIMEOUTS.DISCOVERY_TIMEOUT);
-        }
-
-        function refreshSensorValues() {
-            // if (!deviceId) {
-            //     console.error('Device ID not found');
-            //     showAlert('Error: Device ID not found', 'danger');
-            //     return;
-            // }
-            const deviceId = document.getElementById('read-values-btn').getAttribute('data-device-id');
-            const url = `/api/device-values/${deviceId}/`;
-
-            apiCall(url, 'GET')
+        function callApiAndHandleResponse(url, method, onSuccess, onError) {
+            return apiCall(url, method)
                 .then(response => {
                     if (response.success) {
-                        updateSensorDisplay(response.points);
-                        document.getElementById('values-last-updated').textContent = 'Last updated: ' + new Date().toLocaleString();
+                        onSuccess(response);
                     } else {
-                        showAlert('Error refreshing values: ' + response.message, 'warning');
+                        onError(response.message)
                     }
                 })
-                .catch(error => {
-                    console.error('Error refreshing values:', error);
-                });
+                .catch(error => onError(error.message));
         }
 
-        function updateSensorDisplay(points) {
+        function updateSensorCards(points) {
             points.forEach(point => {
                 const row = document.querySelector(`div[data-point-id="${point.id}"]`);
                 if (row) {
@@ -398,7 +357,11 @@
 
                         }
                 }
+            });
+        }
 
+        function updatePointTables(points) {
+            points.forEach(point => {
                 const typeTableRows = document.querySelectorAll('.table-sm tbody tr');
                 typeTableRows.forEach(row => {
                     const cells = row.querySelectorAll('td');
@@ -419,7 +382,62 @@
                     }
                 });
             });
+        }
+
+        function updateSensorDisplay(points) {
+            updateSensorCards(points);
+            updatePointTables(points);
             showAlert('Sensor values refreshed!', 'success');
+        }
+
+        function checkForNewPoints() {
+            const deviceId = getDeviceId();
+            const url = `/api/device-values/${deviceId}/`;
+
+            callApiAndHandleResponse(url, 'GET',
+                (response) => {
+                    if (response.total_points > 0) {
+                        location.reload();
+                    }
+                },
+                () => console.log('Still waiting for points')
+            );
+            
+        }
+
+        if (document.getElementById('loading-points-section')) {
+            const checkInterval = setInterval(() => {
+               checkForNewPoints(); 
+            }, TIMEOUTS.POINT_CHECK_INTERVAL);
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                document.getElementById('loading-points-section').innerHTML = `
+                    <div class="alert alert-warning">
+                        <h5>Points Discovery Timeout</h5>
+                        <p>Unable to discover points automatically. You can try manually using the "Read Points" button above.</p>
+                    </div>
+                `;
+            }, TIMEOUTS.DISCOVERY_TIMEOUT);
+        }
+
+        function refreshSensorValues() {
+            const deviceId = getDeviceId();
+            const url = `/api/device-values/${deviceId}/`;
+
+            callApiAndHandleResponse(url, 'GET',
+                (response) => {
+                    updateSensorDisplay(response.points);
+                    updateLastUpdatedTime();
+                },
+                (error) => showAlert('Error refreshing values: ' + error, 'warning')
+            );
+        }
+
+        function getDeviceId() {
+            return document.getElementById('read-values-btn').getAttribute('data-device-id');
+        }
+        function updateLastUpdatedTime(){
+            document.getElementById('values-last-updated').textContent = 'Last updated: ' + new Date().toLocaleString();
         }
         setInterval(refreshSensorValues, TIMEOUTS.REFRESH_INTERVAL);
         
