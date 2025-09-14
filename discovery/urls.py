@@ -35,7 +35,7 @@ urlpatterns = [
     # path("api/config/", views.config_info, name="config_info"),
     path("api/debug/", views.debug_urls, name="debug_urls"),
     path(
-        "api/read-values/<int:device_id>/",
+        "api/read-values/",
         views.read_point_values,
         name="read_point_values",
     ),

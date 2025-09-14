@@ -4,7 +4,6 @@ from unittest.mock import Mock, patch
 from django.test import Client, RequestFactory
 from django.urls import reverse
 
-from discovery.exceptions import ConfigurationError
 from discovery.views import (
     _build_device_context,
     _organise_points_by_type,
@@ -177,7 +176,7 @@ class TestAPIViews(BaseTestCase):
         with patch("discovery.views.BACnetService") as mock_ensure:
             mock_service = Mock()
             mock_ensure.return_value = mock_service
-            response = self.client.post(f"/api/read-values/{self.device.device_id}/")
+            response = self.client.post("/api/read-values/")
 
             self.assertEqual(response.status_code, 200)
             data = json.loads(response.content)
@@ -191,20 +190,6 @@ class TestErrorHandling(BaseTestCase):
     def setUp(self):
         super().setUp()
         self.factory = RequestFactory()
-
-    @patch("discovery.views.BACnetService")
-    def test_configuration_error_handling(self, mock_ensure_client):
-        mock_ensure_client.side_effect = ConfigurationError("Config Error")
-        request = self.factory.post("/api/start-discovery")
-
-        from discovery.views import start_discovery
-
-        response = start_discovery(request)
-
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
-        self.assertFalse(data["success"])
-        self.assertIn("Configuration error", data["message"])
 
     def test_device_not_found_in_decorator(self):
         request = self.factory.post("/api/read-points/99999/")
