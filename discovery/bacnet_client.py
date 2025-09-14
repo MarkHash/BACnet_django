@@ -237,7 +237,7 @@ class DjangoBACnetClient(BIPSimpleApplication):
             unit_name = str(engineering_unit).split("(")[1].rstrip(")")
 
             return BACnetConstants.UNIT_CONVERSIONS.get(unit_name, unit_name)
-        except ValueError:
+        except (ValueError, TypeError):
             return f"unknown-units-{units_code}"
 
     def read_point_value(
