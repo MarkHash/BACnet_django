@@ -17,6 +17,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .bacnet_client import DjangoBACnetClient, clear_all_devices
 from .constants import BACnetConstants
+from .decorators import requires_client_only, requires_device_and_client
 from .exceptions import (
     BACnetError,
     ConfigurationError,
@@ -183,151 +184,108 @@ def ensure_bacnet_client():
 
 
 @csrf_exempt
-def start_discovery(request):
+@requires_client_only
+def start_discovery(request, client):
     if request.method == "POST":
-        try:
-            client = ensure_bacnet_client()
-            logger.debug("ensure_bacnet_client")
-            client.send_whois()
-
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": f"Device discovery started"
-                    f" - devices will appear in a few seconds",
-                }
-            )
-        except ConfigurationError as e:
-            return create_error_response(e)
-        except BACnetError as e:
-            return create_error_response(e)
-        except Exception as e:
-            logger.exception("Unexpected error in start_discovery")
-            return create_error_response(e)
-
-    return JsonResponse({"success": False, "message": "Invalid request"})
-
-
-@csrf_exempt
-def read_device_points(request, device_id):
-    if request.method == "POST":
-        try:
-            logger.debug(f"device_ID: {device_id}")
-            device = get_object_or_404(BACnetDevice, device_id=device_id)
-            client = ensure_bacnet_client()
-            client.read_device_objects(device.device_id)
-
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": f"Started reading points for device {device.device_id}",
-                    "device_id": device.device_id,
-                    "estimated_time": "5-10 seconds",
-                    "status": "reading",
-                }
-            )
-        except ConfigurationError as e:
-            return create_error_response(e)
-        except BACnetError as e:
-            return create_error_response(e)
-        except Exception as e:
-            logger.exception(f"Unexpected error reading points for {device_id}")
-            return create_error_response(e)
-
-    return JsonResponse({"success": False, "message": "Invalid request"})
-
-
-@csrf_exempt
-def read_point_values(request, device_id):
-    if request.method == "POST":
-        try:
-            device = get_object_or_404(BACnetDevice, device_id=device_id)
-            client = ensure_bacnet_client()
-
-            client.read_all_point_values(device.device_id)
-
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": f"Started reading sensor values for device {device.device_id}",
-                }
-            )
-        except ConfigurationError as e:
-            return create_error_response(e)
-        except BACnetError as e:
-            return create_error_response(e)
-        except Exception as e:
-            logger.exception(f"Unexpected error reading points for {device.device_id}")
-            return create_error_response(e)
-
-    return JsonResponse({"success": False, "message": "Invalid request"})
-
-
-@csrf_exempt
-def read_single_point_value(request, device_id, object_type, instance_number):
-    if request.method == "POST":
-        try:
-            device = get_object_or_404(BACnetDevice, device_id=device_id)
-            client = ensure_bacnet_client()
-
-            client.read_point_value(device_id, object_type, instance_number)
-
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": f"Reading values from {object_type}:{instance_number}",
-                }
-            )
-        except ConfigurationError as e:
-            return create_error_response(e)
-        except BACnetError as e:
-            return create_error_response(e)
-        except Exception as e:
-            logger.exception(f"Unexpected error reading points for {device_id}")
-            return create_error_response(e)
-
-    return JsonResponse({"success": False, "message": "Invalid request"})
-
-
-def get_device_value_api(request, device_id):
-    try:
-        device = get_object_or_404(BACnetDevice, device_id=device_id)
-        points_data = []
-        for point in device.points.all().order_by("object_type", "instance_number"):
-            point_data = {
-                "id": point.id,
-                "identifier": point.identifier,
-                "object_type": point.object_type,
-                "instance_number": point.instance_number,
-                "object_name": point.object_name or "",
-                "present_value": point.present_value or "",
-                "units": point.units or "",
-                "display_value": point.get_display_value(),
-                "value_last_read": (
-                    point.value_last_read.isoformat() if point.value_last_read else None
-                ),
-                "is_readable": point.is_readable,
-                "data_type": point.data_type or "",
-            }
-            points_data.append(point_data)
+        logger.debug("ensure_bacnet_client")
+        client.send_whois()
 
         return JsonResponse(
             {
                 "success": True,
-                "device_id": device.device_id,
-                "points": points_data,
-                "total_points": len(points_data),
-                "readable_points": len([p for p in points_data if p["is_readable"]]),
-                "last_updated": timezone.now().isoformat(),
+                "message": f"Device discovery started"
+                f" - devices will appear in a few seconds",
             }
         )
-    except ConfigurationError as e:
-        return create_error_response(e)
-    except BACnetError as e:
-        return create_error_response(e)
-    except Exception as e:
-        logger.exception(f"Unexpected error reading points for {device_id}")
-        return create_error_response(e)
+
+    return JsonResponse({"success": False, "message": "Invalid request"})
+
+
+@csrf_exempt
+@requires_device_and_client
+def read_device_points(request, device_id, device, client):
+    if request.method == "POST":
+        logger.debug(f"device_ID: {device_id}")
+        client.read_device_objects(device.device_id)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"Started reading points for device {device.device_id}",
+                "device_id": device.device_id,
+                "estimated_time": "5-10 seconds",
+                "status": "reading",
+            }
+        )
+
+    return JsonResponse({"success": False, "message": "Invalid request"})
+
+
+@csrf_exempt
+@requires_device_and_client
+def read_point_values(request, device_id, device, client):
+    if request.method == "POST":
+        client.read_all_point_values(device.device_id)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"Started reading sensor values for device {device.device_id}",
+            }
+        )
+
+    return JsonResponse({"success": False, "message": "Invalid request"})
+
+
+@csrf_exempt
+@requires_device_and_client
+def read_single_point_value(
+    request, device_id, device, client, object_type, instance_number
+):
+    if request.method == "POST":
+        client.read_point_value(device_id, object_type, instance_number)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"Reading values from {object_type}:{instance_number}",
+            }
+        )
+
+    return JsonResponse({"success": False, "message": "Invalid request"})
+
+
+@requires_device_and_client
+def get_device_value_api(request, device_id, device, client):
+    points_data = []
+    for point in device.points.all().order_by("object_type", "instance_number"):
+        point_data = {
+            "id": point.id,
+            "identifier": point.identifier,
+            "object_type": point.object_type,
+            "instance_number": point.instance_number,
+            "object_name": point.object_name or "",
+            "present_value": point.present_value or "",
+            "units": point.units or "",
+            "display_value": point.get_display_value(),
+            "value_last_read": (
+                point.value_last_read.isoformat() if point.value_last_read else None
+            ),
+            "is_readable": point.is_readable,
+            "data_type": point.data_type or "",
+        }
+        points_data.append(point_data)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "device_id": device.device_id,
+            "points": points_data,
+            "total_points": len(points_data),
+            "readable_points": len([p for p in points_data if p["is_readable"]]),
+            "last_updated": timezone.now().isoformat(),
+        }
+    )
 
 
 def get_point_history_api(request, point_id):
