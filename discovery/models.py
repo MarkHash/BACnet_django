@@ -18,6 +18,8 @@ class BACnetDevice(models.Model):
 
     is_online = models.BooleanField(default=True)
     points_read = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["device_id"]

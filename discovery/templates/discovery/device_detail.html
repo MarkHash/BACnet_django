@@ -266,7 +266,7 @@
                 return;
             }
 
-            const promise = apiCall(`/api/read-points/${deviceId}/`, 'POST');
+            const promise = apiCall(`/api/discover-points/${deviceId}/`, 'POST');
             handleButtonState(this,
                 handleApiResponse(promise,
                     (response) => {

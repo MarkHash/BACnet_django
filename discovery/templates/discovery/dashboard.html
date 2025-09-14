@@ -172,7 +172,7 @@
 
                 if (!pointsRead) {
                     e.preventDefault();
-                    const promise = apiCall(`/api/read-points/${deviceId}/`, 'POST');
+                    const promise = apiCall(`/api/discover-points/${deviceId}/`, 'POST');
                     handleButtonState(this, handleApiResponse(promise,
                         () => {
                             showAlert('Points discovered! Redirecting...', 'success');
@@ -191,10 +191,10 @@
             });
         });
 
-        document.querySelectorAll('.read-points-btn').forEach(btn => {
+        document.querySelectorAll('.discover-points-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const deviceId = this.dataset.deviceId;
-                const promise = apiCall(`/api/read-points/${deviceId}/`, 'POST');
+                const promise = apiCall(`/api/discover-points/${deviceId}/`, 'POST');
                 handleButtonState(this, handleApiResponse(promise), '⏳ Reading...'
                 );
             });
