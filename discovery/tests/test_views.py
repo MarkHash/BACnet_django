@@ -132,6 +132,7 @@ class TestAPIViews(BaseTestCase):
     def test_start_discovery_post_success(self):
         with patch("discovery.views.BACnetService") as mock_ensure:
             mock_service = Mock()
+            mock_service.discover_devices.return_value = [{"deviceId": 123}]
             mock_ensure.return_value = mock_service
 
             response = self.client.post("/api/start-discovery/")
@@ -156,6 +157,7 @@ class TestAPIViews(BaseTestCase):
     def test_discover_device_points_success(self):
         with patch("discovery.views.BACnetService") as mock_ensure:
             mock_service = Mock()
+            mock_service.discover_device_points.return_value = [Mock(), Mock()]
             mock_ensure.return_value = mock_service
 
             response = self.client.post(
@@ -175,6 +177,7 @@ class TestAPIViews(BaseTestCase):
     def test_read_point_values_success(self):
         with patch("discovery.views.BACnetService") as mock_ensure:
             mock_service = Mock()
+            mock_service.collect_all_readings.return_value = {"readings_collected": 5}
             mock_ensure.return_value = mock_service
             response = self.client.post("/api/read-values/")
 

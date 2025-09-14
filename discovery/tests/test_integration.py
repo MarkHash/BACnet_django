@@ -183,6 +183,7 @@ class TestAPIEndpointIntegration(BaseTestCase):
     @patch("discovery.views.BACnetService")
     def test_start_discovery_integration(self, mock_ensure_client):
         mock_service = Mock()
+        mock_service.discover_devices.return_value = [{"deviceId": 123}]
         mock_ensure_client.return_value = mock_service
 
         url = reverse("discovery:start_discovery")
@@ -215,6 +216,7 @@ class TestAPIEndpointIntegration(BaseTestCase):
     @patch("discovery.views.BACnetService")
     def test_read_point_values_integration(self, mock_ensure_client):
         mock_service = Mock()
+        mock_service.collect_all_readings.return_value = {"readings_collected": 3}
         mock_ensure_client.return_value = mock_service
 
         url = reverse("discovery:read_point_values")
@@ -231,7 +233,7 @@ class TestAPIEndpointIntegration(BaseTestCase):
         mock_service = Mock()
         mock_ensure_client.return_value = mock_service
 
-        url = reverse("discovery:get_device_value_api", args=[self.device.device_id])
+        url = reverse("discovery:get_device_value_api")
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
