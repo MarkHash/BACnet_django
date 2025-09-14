@@ -238,7 +238,7 @@ class BACnetService:
         except Exception as e:
             self._log(f"❌ Failed to read {point.identifier}: {e}")
 
-    def _process_device_readings(self, device, results):
+    def read_device_points(self, device, results):
         try:
             self._log(f"📖 Reading from device {device.device_id}")
             readable_points = device.points.filter(
@@ -283,7 +283,7 @@ class BACnetService:
         if self._connect():
             try:
                 for device in online_devices:
-                    self._process_device_readings(device, results)
+                    self.read_device_points(device, results)
                     results["devices_processed"] += 1
 
                 self._log(

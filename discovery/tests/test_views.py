@@ -65,12 +65,9 @@ class TestDeviceDetailView(BaseTestCase):
             device=self.device, object_type="binaryInput", instance_number=2
         )
 
-    @patch("discovery.views._trigger_auto_refresh_if_needed")
     @patch("discovery.views._organise_points_by_type")
     @patch("discovery.views._build_device_context")
-    def test_device_detail_calls_helpers(
-        self, mock_context, mock_organise, mock_refresh
-    ):
+    def test_device_detail_calls_helpers(self, mock_context, mock_organise):
         request = self.factory.get(f"/device/{self.device.device_id}/")
 
         mock_organise.return_value = {"analogInput": [self.analog_point]}
@@ -79,7 +76,6 @@ class TestDeviceDetailView(BaseTestCase):
         response = device_detail(request, self.device.device_id)
         self.assertEqual(response.status_code, 200)
 
-        mock_refresh.assert_called_once()
         mock_organise.assert_called_once()
         mock_context.assert_called_once()
 
@@ -92,11 +88,9 @@ class TestDeviceDetailView(BaseTestCase):
     def test_device_detail_integration(self):
         request = self.factory.get(f"/device/{self.device.device_id}/")
 
-        with patch("discovery.views._trigger_auto_refresh_if_needed") as mock_refresh:
-            response = device_detail(request, self.device.device_id)
+        response = device_detail(request, self.device.device_id)
 
-            self.assertEqual(response.status_code, 200)
-            mock_refresh.assert_called_once()
+        self.assertEqual(response.status_code, 200)
 
 
 class TestViewHelperFunctions(BaseTestCase):
@@ -137,9 +131,9 @@ class TestAPIViews(BaseTestCase):
         self.point = BACnetPointFactory(device=self.device)
 
     def test_start_discovery_post_success(self):
-        with patch("discovery.views.ensure_bacnet_client") as mock_ensure:
-            mock_client = Mock()
-            mock_ensure.return_value = mock_client
+        with patch("discovery.views.BACnetService") as mock_ensure:
+            mock_service = Mock()
+            mock_ensure.return_value = mock_service
 
             response = self.client.post("/api/start-discovery/")
 
@@ -147,12 +141,12 @@ class TestAPIViews(BaseTestCase):
             data = json.loads(response.content)
             self.assertTrue(data["success"])
 
-            mock_client.send_whois.assert_called_once()
+            mock_service.discover_devices.assert_called_once()
 
     def test_start_discovery_get_invalid(self):
-        with patch("discovery.views.ensure_bacnet_client") as mock_ensure:
-            mock_client = Mock()
-            mock_ensure.return_value = mock_client
+        with patch("discovery.views.BACnetService") as mock_ensure:
+            mock_service = Mock()
+            mock_ensure.return_value = mock_service
             response = self.client.get("/api/start-discovery/")
 
             self.assertEqual(response.status_code, 200)
@@ -160,70 +154,37 @@ class TestAPIViews(BaseTestCase):
             self.assertFalse(data["success"])
             self.assertEqual(data["message"], "Invalid request")
 
-    def test_read_device_points_success(self):
-        with patch("discovery.views.ensure_bacnet_client") as mock_ensure:
-            mock_client = Mock()
-            mock_ensure.return_value = mock_client
+    def test_discover_device_points_success(self):
+        with patch("discovery.views.BACnetService") as mock_ensure:
+            mock_service = Mock()
+            mock_ensure.return_value = mock_service
 
-            response = self.client.post(f"/api/read-points/{self.device.device_id}/")
+            response = self.client.post(
+                f"/api/discover-points/{self.device.device_id}/"
+            )
 
             self.assertEqual(response.status_code, 200)
             data = json.loads(response.content)
             self.assertTrue(data["success"])
-            self.assertIn("Started reading points", data["message"])
+            self.assertIn("Discovered", data["message"])
             self.assertEqual(data["device_id"], self.device.device_id)
 
-            mock_client.read_device_objects.assert_called_once_with(
+            mock_service.discover_device_points.assert_called_once_with(
                 self.device.device_id
             )
 
     def test_read_point_values_success(self):
-        with patch("discovery.views.ensure_bacnet_client") as mock_ensure:
-            mock_client = Mock()
-            mock_ensure.return_value = mock_client
+        with patch("discovery.views.BACnetService") as mock_ensure:
+            mock_service = Mock()
+            mock_ensure.return_value = mock_service
             response = self.client.post(f"/api/read-values/{self.device.device_id}/")
 
             self.assertEqual(response.status_code, 200)
             data = json.loads(response.content)
             self.assertTrue(data["success"])
-            self.assertIn("Started reading sensor values", data["message"])
+            self.assertIn("Read", data["message"])
 
-            mock_client.read_all_point_values.assert_called_once_with(
-                self.device.device_id
-            )
-
-
-class TestDecoratorIntegration(BaseTestCase):
-    def setUp(self):
-        super().setUp()
-        self.factory = RequestFactory()
-        self.device = BACnetDeviceFactory()
-
-    @patch("discovery.views.ensure_bacnet_client")
-    def test_requires_client_only_decorator(self, mock_ensure_client):
-        mock_client = Mock()
-        mock_ensure_client.return_value = mock_client
-
-        request = self.factory.post("/api/start_discovery/")
-        from discovery.views import start_discovery
-
-        response = start_discovery(request)
-
-        self.assertEqual(response.status_code, 200)
-        mock_ensure_client.assert_called_once()
-
-    @patch("discovery.views.ensure_bacnet_client")
-    def test_requires_device_and_client_decorator(self, mock_ensure_client):
-        mock_client = Mock()
-        mock_ensure_client.return_value = mock_client
-
-        request = self.factory.post(f"/api/read-points/{self.device.device_id}/")
-        from discovery.views import read_device_points
-
-        response = read_device_points(request, self.device.device_id)
-
-        self.assertEqual(response.status_code, 200)
-        mock_ensure_client.assert_called_once()
+            mock_service.collect_all_readings.assert_called_once()
 
 
 class TestErrorHandling(BaseTestCase):
@@ -231,7 +192,7 @@ class TestErrorHandling(BaseTestCase):
         super().setUp()
         self.factory = RequestFactory()
 
-    @patch("discovery.views.ensure_bacnet_client")
+    @patch("discovery.views.BACnetService")
     def test_configuration_error_handling(self, mock_ensure_client):
         mock_ensure_client.side_effect = ConfigurationError("Config Error")
         request = self.factory.post("/api/start-discovery")
@@ -248,28 +209,10 @@ class TestErrorHandling(BaseTestCase):
     def test_device_not_found_in_decorator(self):
         request = self.factory.post("/api/read-points/99999/")
 
-        from discovery.views import read_device_points
+        from discovery.views import discover_device_points
 
-        response = read_device_points(request, 99999)
+        response = discover_device_points(request, 99999)
 
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertFalse(data["success"])
-
-
-class TestViewUtilitiesIntegration(BaseTestCase):
-    def setUp(self):
-        super().setUp()
-        self.device = BACnetDeviceFactory()
-
-    @patch("discovery.views.ensure_bacnet_client")
-    def test_ensure_bacnet_client_integration(self, mock_ensure):
-        mock_client = Mock()
-        mock_ensure.return_value = mock_client
-
-        from discovery.views import ensure_bacnet_client
-
-        result = ensure_bacnet_client()
-
-        self.assertEqual(result, mock_client)
-        mock_ensure.assert_called_once()
