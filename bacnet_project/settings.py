@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "discovery",
+    "django_celery_results",
 ]
 
 MIDDLEWARE = [
@@ -148,3 +149,30 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Celery Configuration
+# CELERY_BROKER_URL = 'django://'
+CELERY_BROKER_URL = (
+    "sqlalchemy+postgresql://bacnet_user:password@localhost:5432/bacnet_django"
+)
+CELERY_RESULT_BACKEND = (
+    "db+postgresql://bacnet_user:password@localhost:5432/bacnet_django"
+)
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
+# Celery Beat Schedule
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    "calculate-hourly-stats": {
+        "task": "discovery.tasks.calculate_hourly_stats",
+        "schedule": crontab(minute=0),  # Run every hour at minute 0
+    },
+    "calculate-daily-stats": {
+        "task": "discovery.tasks.calculate_daily_stats",
+        "schedule": crontab(hour=0, minute=5),  # Run daily at 00:05
+    },
+}
