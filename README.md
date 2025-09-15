@@ -276,3 +276,8 @@ BACnet_django/
 ## Support
 
 [Add support contact information here]
+
+## PostgreSQL info
+
+user: postgre (password: password)
+user: bacnet_user  (password: password)
