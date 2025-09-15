@@ -3,7 +3,7 @@ import logging
 import BAC0
 from django.utils import timezone
 
-from .models import BACnetDevice, BACnetReading, DeviceStatusHistory
+from .models import BACnetDevice, BACnetPoint, BACnetReading, DeviceStatusHistory
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(name)s = %(levelname)s - %(message)s"
@@ -170,6 +170,101 @@ class BACnetService:
     #     except Exception as e:
     #         logger.error(f"Error: {e}")
 
+    def discover_device_points(self, device):
+        """
+        Discover points on a device and save to database as BACnetPoint records.
+
+
+        """
+        try:
+            if self._connect():
+                read_string = f"{device.address} device {device.device_id} objectList"
+                self._log(f"📖 Reading device: {device.device_id}")
+                point_list = self.bacnet.read(read_string)
+
+                for point in point_list:
+                    try:
+                        BACnetPoint.objects.get_or_create(
+                            device=device,
+                            object_type=point.object_type,
+                            instance_number=point.instance_number,
+                            identifier=point.identifier,
+                            value_last_read=timezone.now(),
+                        )
+                    except Exception as e:
+                        logger.error(f"Error {e}")
+
+                self._disconnect()
+                return point_list
+
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return None
+
+    def read_point_value(self, device, point):
+        """
+        Get the current value of a known point
+        Args:
+            device (object): device object
+            point (object): point object
+        """
+        try:
+            if self._connect():
+                read_string = f"{device.address} {point.object_type}"
+                f" {point.instance_number} presentValue"
+                self._log(f"📖 Reading {point.identifier}")
+                value = self.bacnet.read(read_string)
+
+                self._disconnect()
+                return value
+
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return None
+
+    def _read_single_point(self, device, point, results):
+        try:
+            read_string = f"{device.address} {point.object_type}"
+            f" {point.instance_number} presentValue"
+            self._log(f"📖 Reading {point.identifier}")
+            value = self.bacnet.read(read_string)
+            if value is not None:
+                BACnetReading.objects.create(
+                    point=point,
+                    value=str(value),
+                    read_time=timezone.now(),
+                )
+                results["readings_collected"] += 1
+        except Exception as e:
+            self._log(f"❌ Failed to read {point.identifier}: {e}")
+
+    def read_device_points(self, device, results):
+        try:
+            self._log(f"📖 Reading from device {device.device_id}")
+            readable_points = device.points.filter(
+                object_type__in=["analogInput", "analogOutput"]
+            )
+
+            for point in readable_points:
+                self._read_single_point(device, point, results)
+
+        except Exception as e:
+            results["devices_failed"] += 1
+            self._log(f"❌ Device {device.device_id} failed: {e}")
+
+    def _initialise_results(self):
+        return {
+            "devices_processed": 0,
+            "readings_collected": 0,
+            "devices_failed": 0,
+            "timestamp": timezone.now(),
+        }
+
+    def _get_online_devices(self):
+        online_devices = BACnetDevice.objects.filter(is_online=True)
+        self._log(f"📊 Found {online_devices.count()} online devices")
+        return online_devices
+
     def collect_all_readings(self):
         """
         Collect current readings from all online BACnet devices
@@ -183,56 +278,22 @@ class BACnetService:
             Exception: BACnet connection or database errors
 
         """
-        try:
-            results = {
-                "devices_processed": 0,
-                "readings_collected": 0,
-                "devices_failed": 0,
-                "timestamp": timezone.now(),
-            }
-            online_devices = BACnetDevice.objects.filter(is_online=True)
-            self._log(f"📊 Found {online_devices.count()} online devices")
-            if self._connect():
+        results = self._initialise_results()
+        online_devices = self._get_online_devices()
+        if self._connect():
+            try:
                 for device in online_devices:
-                    try:
-                        self._log(f"📖 Reading from device {device.device_id}")
-                        readable_points = device.points.filter(
-                            object_type__in=["analogInput", "analogOutput"]
-                        )
+                    self.read_device_points(device, results)
+                    results["devices_processed"] += 1
 
-                        for point in readable_points:
-                            try:
-                                read_string = f"{device.address} "
-                                f"{point.object_type} {point.instance_number} "
-                                "presentValue"
-                                self._log(f"📖 Reading {point.identifier}")
-                                value = self.bacnet.read(read_string)
-
-                                if value is not None:
-                                    BACnetReading.objects.create(
-                                        point=point,
-                                        value=str(value),
-                                        read_time=timezone.now(),
-                                    )
-                                    results["readings_collected"] += 1
-
-                            except Exception as e:
-                                self._log(f"❌ Failed to read {point.identifier}: {e}")
-                        results["devices_processed"] += 1
-                    except Exception as e:
-                        results["devices_failed"] += 1
-                        self._log(f"❌ Device {device.device_id} failed: {e}")
-
-                self._disconnect()
                 self._log(
                     f"✅ Collected {results['readings_collected']} readings "
                     f"from {results['devices_processed']} devices"
                 )
                 return results
-
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            return None
+            finally:
+                self._disconnect()
+        return None
 
         # def check_device_health(self):
         #     try:
@@ -240,6 +301,3 @@ class BACnetService:
         #             devices = self.discover_devices()
 
         #             self._disconnect()
-
-        except Exception as e:
-            logger.error(f"Error: {e}")

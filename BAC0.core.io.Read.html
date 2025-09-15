@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Python: module BAC0.core.io.Read</title>
+</head><body>
+
+<table class="heading">
+<tr class="heading-text decor">
+<td class="title">&nbsp;<br><strong class="title"><a href="BAC0.html" class="white">BAC0</a>.<a href="BAC0.core.html" class="white">core</a>.<a href="BAC0.core.io.html" class="white">io</a>.Read</strong></td>
+<td class="extra"><a href=".">index</a><br><a href="file:/Users/makotohashimoto/miniforge3/envs/bacnet_django/lib/python3.12/site-packages/BAC0/core/io/Read.py">/Users/makotohashimoto/miniforge3/envs/bacnet_django/lib/python3.12/site-packages/BAC0/core/io/Read.py</a></td></tr></table>
+    <p><span class="code">Read.py&nbsp;-&nbsp;creation&nbsp;of&nbsp;<a href="#ReadProperty">ReadProperty</a>&nbsp;and&nbsp;ReadPropertyMultiple&nbsp;requests<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Used&nbsp;while&nbsp;defining&nbsp;an&nbsp;app:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Example::<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;class&nbsp;BasicScript(WhoisIAm,&nbsp;<a href="#ReadProperty">ReadProperty</a>)<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Class::<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#ReadProperty">ReadProperty</a>()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;read()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;readMultiple()</span></p>
+<p>
+<table class="section">
+<tr class="decor pkg-content-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Modules</strong></td></tr>
+    
+<tr><td class="decor pkg-content-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="typing.html">typing</a><br>
+</td><td class="multicolumn"></td><td class="multicolumn"></td><td class="multicolumn"></td></tr></table></td></tr></table><p>
+<table class="section">
+<tr class="decor index-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Classes</strong></td></tr>
+    
+<tr><td class="decor index-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><dl>
+<dt class="heading-text"><a href="builtins.html#object">builtins.object</a>
+</dt><dd>
+<dl>
+<dt class="heading-text"><a href="BAC0.core.io.Read.html#ReadProperty">ReadProperty</a>
+</dt></dl>
+</dd>
+</dl>
+ <p>
+<table class="section">
+<tr class="decor title-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><a name="ReadProperty">class <strong>ReadProperty</strong></a>(<a href="builtins.html#object">builtins.object</a>)</td></tr>
+    
+<tr><td class="decor title-decor" rowspan=2><span class="code">&nbsp;&nbsp;&nbsp;</span></td>
+<td class="decor title-decor" colspan=2><span class="code">Defines&nbsp;BACnet&nbsp;Read&nbsp;functions:&nbsp;readProperty&nbsp;and&nbsp;readPropertyMultiple.<br>
+Data&nbsp;exchange&nbsp;is&nbsp;made&nbsp;via&nbsp;a&nbsp;Queue&nbsp;<a href="builtins.html#object">object</a><br>
+A&nbsp;timeout&nbsp;of&nbsp;10&nbsp;seconds&nbsp;allows&nbsp;detection&nbsp;of&nbsp;invalid&nbsp;device&nbsp;or&nbsp;communciation&nbsp;errors.<br>&nbsp;</span></td></tr>
+<tr><td>&nbsp;</td>
+<td class="singlecolumn">Methods defined here:<br>
+<dl><dt><a name="ReadProperty-build_rp_request"><strong>build_rp_request</strong></a>(self, args: List[str], arr_index=None, vendor_id: int = 0, bacoid=None) -&gt; bacpypes.apdu.ReadPropertyRequest</dt></dl>
+
+<dl><dt><a name="ReadProperty-build_rpm_request"><strong>build_rpm_request</strong></a>(self, args: List[str], vendor_id: int = 0) -&gt; bacpypes.apdu.ReadPropertyMultipleRequest</dt><dd><span class="code">Build&nbsp;request&nbsp;from&nbsp;args</span></dd></dl>
+
+<dl><dt><a name="ReadProperty-build_rpm_request_from_dict"><strong>build_rpm_request_from_dict</strong></a>(self, request_dict, vendor_id)</dt><dd><span class="code">Read&nbsp;property&nbsp;multiple&nbsp;allow&nbsp;to&nbsp;read&nbsp;a&nbsp;lot&nbsp;of&nbsp;properties&nbsp;with&nbsp;only&nbsp;one&nbsp;request<br>
+The&nbsp;existing&nbsp;RPM&nbsp;function&nbsp;is&nbsp;made&nbsp;using&nbsp;a&nbsp;string&nbsp;that&nbsp;must&nbsp;be&nbsp;created&nbsp;using&nbsp;bacpypes<br>
+console&nbsp;style&nbsp;and&nbsp;is&nbsp;hard&nbsp;to&nbsp;automate.<br>
+&nbsp;<br>
+This&nbsp;new&nbsp;version&nbsp;will&nbsp;be&nbsp;an&nbsp;attempt&nbsp;to&nbsp;improve&nbsp;that::<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;_rpm&nbsp;=&nbsp;{'address':&nbsp;'11:2',<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'objects':&nbsp;{'analogInput:1':&nbsp;['presentValue',&nbsp;'description',&nbsp;'unit',&nbsp;'objectList@idx:0'],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'analogInput:2':&nbsp;['presentValue',&nbsp;'description',&nbsp;'unit',&nbsp;'objectList@idx:0'],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vendor_id:&nbsp;842<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span></dd></dl>
+
+<dl><dt><a name="ReadProperty-build_rrange_request"><strong>build_rrange_request</strong></a>(self, args, range_params=None, arr_index=None, vendor_id=0, bacoid=None)</dt></dl>
+
+<dl><dt><a name="ReadProperty-clear_notes"><strong>clear_notes</strong></a>(self)<span class="grey"><span class="heading-text"> from BAC0.core.utils.notes.note_and_log.<locals></span></span></dt><dd><span class="code">Clear&nbsp;notes&nbsp;<a href="builtins.html#object">object</a></span></dd></dl>
+
+<dl><dt><a name="ReadProperty-log"><strong>log</strong></a>(self, note, *, level=10)<span class="grey"><span class="heading-text"> from BAC0.core.utils.notes.note_and_log.<locals></span></span></dt><dd><span class="code">Add&nbsp;a&nbsp;log&nbsp;entry...no&nbsp;note</span></dd></dl>
+
+<dl><dt><a name="ReadProperty-log_subtitle"><strong>log_subtitle</strong></a>(self, subtitle, args=None, width=35)<span class="grey"><span class="heading-text"> from BAC0.core.utils.notes.note_and_log.<locals></span></span></dt></dl>
+
+<dl><dt><a name="ReadProperty-log_title"><strong>log_title</strong></a>(self, title, args=None, width=35)<span class="grey"><span class="heading-text"> from BAC0.core.utils.notes.note_and_log.<locals></span></span></dt></dl>
+
+<dl><dt><a name="ReadProperty-note"><strong>note</strong></a>(self, note, *, level=20, log=True)<span class="grey"><span class="heading-text"> from BAC0.core.utils.notes.note_and_log.<locals></span></span></dt><dd><span class="code">Add&nbsp;note&nbsp;to&nbsp;the&nbsp;<a href="builtins.html#object">object</a>.&nbsp;By&nbsp;default,&nbsp;the&nbsp;note&nbsp;will&nbsp;also<br>
+be&nbsp;logged<br>
+:param&nbsp;note:&nbsp;(str)&nbsp;The&nbsp;note&nbsp;itself<br>
+:param&nbsp;level:&nbsp;(logging.level)<br>
+:param&nbsp;log:&nbsp;(boolean)&nbsp;Enable&nbsp;or&nbsp;disable&nbsp;logging&nbsp;of&nbsp;note</span></dd></dl>
+
+<dl><dt><a name="ReadProperty-read"><strong>read</strong></a>(self, args: str, arr_index: Optional[int] = None, vendor_id: int = 0, bacoid=None, timeout: int = 10, show_property_name: bool = False) -&gt; Union[float, str, List, Tuple[Union[float, str, List], str], NoneType]</dt><dd><span class="code">Build&nbsp;a&nbsp;<a href="#ReadProperty">ReadProperty</a>&nbsp;request,&nbsp;wait&nbsp;for&nbsp;the&nbsp;answer&nbsp;and&nbsp;return&nbsp;the&nbsp;value<br>
+&nbsp;<br>
+:param&nbsp;args:&nbsp;String&nbsp;with&nbsp;&lt;addr&gt;&nbsp;&lt;type&gt;&nbsp;&lt;inst&gt;&nbsp;&lt;prop&gt;&nbsp;[&nbsp;&lt;indx&gt;&nbsp;]<br>
+:returns:&nbsp;data&nbsp;read&nbsp;from&nbsp;device&nbsp;(str&nbsp;representing&nbsp;data&nbsp;like&nbsp;10&nbsp;or&nbsp;True)<br>
+&nbsp;<br>
+*Example*::<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;import&nbsp;BAC0<br>
+&nbsp;&nbsp;&nbsp;&nbsp;myIPAddr&nbsp;=&nbsp;'192.168.1.10/24'<br>
+&nbsp;&nbsp;&nbsp;&nbsp;bacnet&nbsp;=&nbsp;BAC0.connect(ip&nbsp;=&nbsp;myIPAddr)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;bacnet.<a href="#ReadProperty-read">read</a>('2:5&nbsp;analogInput&nbsp;1&nbsp;presentValue')<br>
+&nbsp;<br>
+Requests&nbsp;the&nbsp;controller&nbsp;at&nbsp;(Network&nbsp;2,&nbsp;address&nbsp;5)&nbsp;for&nbsp;the&nbsp;presentValue&nbsp;of<br>
+its&nbsp;analog&nbsp;input&nbsp;1&nbsp;(AI:1).</span></dd></dl>
+
+<dl><dt><a name="ReadProperty-readMultiple"><strong>readMultiple</strong></a>(self, args: str, request_dict=None, vendor_id: int = 0, timeout: int = 10, show_property_name: bool = False) -&gt; Union[Dict, List[Tuple[Any, str]]]</dt><dd><span class="code">Build&nbsp;a&nbsp;ReadPropertyMultiple&nbsp;request,&nbsp;wait&nbsp;for&nbsp;the&nbsp;answer&nbsp;and&nbsp;return&nbsp;the&nbsp;values<br>
+&nbsp;<br>
+:param&nbsp;args:&nbsp;String&nbsp;with&nbsp;&lt;addr&gt;&nbsp;(&nbsp;&lt;type&gt;&nbsp;&lt;inst&gt;&nbsp;(&nbsp;&lt;prop&gt;&nbsp;[&nbsp;&lt;indx&gt;&nbsp;]&nbsp;)...&nbsp;)...<br>
+:returns:&nbsp;data&nbsp;read&nbsp;from&nbsp;device&nbsp;(str&nbsp;representing&nbsp;data&nbsp;like&nbsp;10&nbsp;or&nbsp;True)<br>
+&nbsp;<br>
+*Example*::<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;import&nbsp;BAC0<br>
+&nbsp;&nbsp;&nbsp;&nbsp;myIPAddr&nbsp;=&nbsp;'192.168.1.10/24'<br>
+&nbsp;&nbsp;&nbsp;&nbsp;bacnet&nbsp;=&nbsp;BAC0.connect(ip&nbsp;=&nbsp;myIPAddr)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;bacnet.<a href="#ReadProperty-readMultiple">readMultiple</a>('2:5&nbsp;analogInput&nbsp;1&nbsp;presentValue&nbsp;units')<br>
+&nbsp;<br>
+Requests&nbsp;the&nbsp;controller&nbsp;at&nbsp;(Network&nbsp;2,&nbsp;address&nbsp;5)&nbsp;for&nbsp;the&nbsp;(presentValue&nbsp;and&nbsp;units)&nbsp;of<br>
+its&nbsp;analog&nbsp;input&nbsp;1&nbsp;(AI:1).</span></dd></dl>
+
+<dl><dt><a name="ReadProperty-readRange"><strong>readRange</strong></a>(self, args, range_params=None, arr_index=None, vendor_id=0, bacoid=None, timeout=10)</dt><dd><span class="code">Build&nbsp;a&nbsp;<a href="#ReadProperty">ReadProperty</a>&nbsp;request,&nbsp;wait&nbsp;for&nbsp;the&nbsp;answer&nbsp;and&nbsp;return&nbsp;the&nbsp;value<br>
+&nbsp;<br>
+:param&nbsp;args:&nbsp;String&nbsp;with&nbsp;&lt;addr&gt;&nbsp;&lt;type&gt;&nbsp;&lt;inst&gt;&nbsp;&lt;prop&gt;&nbsp;[&nbsp;&lt;indx&gt;&nbsp;]<br>
+:returns:&nbsp;data&nbsp;read&nbsp;from&nbsp;device&nbsp;(str&nbsp;representing&nbsp;data&nbsp;like&nbsp;10&nbsp;or&nbsp;True)<br>
+&nbsp;<br>
+*Example*::<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;import&nbsp;BAC0<br>
+&nbsp;&nbsp;&nbsp;&nbsp;myIPAddr&nbsp;=&nbsp;'192.168.1.10/24'<br>
+&nbsp;&nbsp;&nbsp;&nbsp;bacnet&nbsp;=&nbsp;BAC0.connect(ip&nbsp;=&nbsp;myIPAddr)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;bacnet.<a href="#ReadProperty-read">read</a>('2:5&nbsp;analogInput&nbsp;1&nbsp;presentValue')<br>
+&nbsp;<br>
+Requests&nbsp;the&nbsp;controller&nbsp;at&nbsp;(Network&nbsp;2,&nbsp;address&nbsp;5)&nbsp;for&nbsp;the&nbsp;presentValue&nbsp;of<br>
+its&nbsp;analog&nbsp;input&nbsp;1&nbsp;(AI:1).</span></dd></dl>
+
+<dl><dt><a name="ReadProperty-read_priority_array"><strong>read_priority_array</strong></a>(self, addr, obj, obj_instance) -&gt; List</dt></dl>
+
+<hr>
+Readonly properties defined here:<br>
+<dl><dt><strong>notes</strong></dt>
+<dd><span class="code">Retrieve&nbsp;notes&nbsp;list&nbsp;as&nbsp;a&nbsp;Pandas&nbsp;Series</span></dd>
+</dl>
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><span class="code">dictionary&nbsp;for&nbsp;instance&nbsp;variables</span></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><span class="code">list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object</span></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>logname</strong> = 'BAC0.core.io.Read | ReadProperty'</dl>
+
+</td></tr></table></td></tr></table><p>
+<table class="section">
+<tr class="decor functions-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Functions</strong></td></tr>
+    
+<tr><td class="decor functions-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><dl><dt><a name="-build_property_reference_list"><strong>build_property_reference_list</strong></a>(obj_type, list_of_properties)</dt></dl>
+ <dl><dt><a name="-build_read_access_spec"><strong>build_read_access_spec</strong></a>(obj_type, obj_instance, property_reference_list)</dt></dl>
+ <dl><dt><a name="-cast_datatype_from_tag"><strong>cast_datatype_from_tag</strong></a>(propertyValue, obj_id, prop_id)</dt></dl>
+ <dl><dt><a name="-find_reason"><strong>find_reason</strong></a>(apdu)</dt></dl>
+ <dl><dt><a name="-validate_datatype"><strong>validate_datatype</strong></a>(obj_type, prop_id, vendor_id=842)</dt></dl>
+ <dl><dt><a name="-validate_object_type"><strong>validate_object_type</strong></a>(obj_type, vendor_id=842)</dt></dl>
+ <dl><dt><a name="-validate_property_id"><strong>validate_property_id</strong></a>(obj_type, prop_id)</dt></dl>
+</td></tr></table><p>
+<table class="section">
+<tr class="decor data-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Data</strong></td></tr>
+    
+<tr><td class="decor data-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><strong>ReadValue</strong> = typing.Union[float, str, typing.List]<br>
+<strong>TimeoutError</strong> = RuntimeError('timeout')<br>
+<strong>registered_object_types</strong> = {('accessCredential', 0): &lt;class 'bacpypes.object.AccessCredentialObject'&gt;, ('accessDoor', 0): &lt;class 'bacpypes.object.AccessDoorObject'&gt;, ('accessPoint', 0): &lt;class 'bacpypes.object.AccessPointObject'&gt;, ('accessRights', 0): &lt;class 'bacpypes.object.AccessRightsObject'&gt;, ('accessUser', 0): &lt;class 'bacpypes.object.AccessUserObject'&gt;, ('accessZone', 0): &lt;class 'bacpypes.object.AccessZoneObject'&gt;, ('accumulator', 0): &lt;class 'bacpypes.object.AccumulatorObject'&gt;, ('alertEnrollment', 0): &lt;class 'bacpypes.object.AlertEnrollmentObject'&gt;, ('analogInput', 0): &lt;class 'bacpypes.object.AnalogInputObject'&gt;, ('analogOutput', 0): &lt;class 'bacpypes.object.AnalogOutputObject'&gt;, ...}</td></tr></table>
+</body></html>

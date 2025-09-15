@@ -1,13 +1,5 @@
-import json
 import logging
-import os
-import sys
-import threading
-import time
 
-from bacpypes.consolelogging import ConfigArgumentParser
-from bacpypes.core import enable_sleeping, run
-from bacpypes.local.device import LocalDeviceObject
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -15,17 +7,12 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from .bacnet_client import DjangoBACnetClient, clear_all_devices
 from .constants import BACnetConstants
-from .decorators import requires_client_only, requires_device_and_client
-from .exceptions import (
-    BACnetError,
-    ConfigurationError,
-    DeviceNotFoundByAddressError,
-    DeviceNotFoundError,
-    PointNotFoundError,
-)
+from .exceptions import BACnetError, ConfigurationError, DeviceNotFoundError
 from .models import BACnetDevice, BACnetPoint
+
+# from .bacnet_client import DjangoBACnetClient, clear_all_devices
+from .services import BACnetService
 
 
 def create_error_response(error, user_friendly=True):
@@ -55,44 +42,41 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-bacnet_client = None
-bacnet_config = None
 
+# def load_bacnet_config():
+#     global bacnet_config
+#     if bacnet_config is None:
+#         try:
+#             logger.debug("Loading BACnet configuration from BACpypes.ini...")
+#             original_argv = sys.argv.copy()
+#             ini_path = "./discovery/BACpypes.ini"
+#             if not os.path.exists(ini_path):
+#                 raise ConfigurationError(
+#                     "Failed to load BACpypes.ini",
+#                     config_file="./discovery/BACpypes.ini",
+#                 )
 
-def load_bacnet_config():
-    global bacnet_config
-    if bacnet_config is None:
-        try:
-            logger.debug("Loading BACnet configuration from BACpypes.ini...")
-            original_argv = sys.argv.copy()
-            ini_path = "./discovery/BACpypes.ini"
-            if not os.path.exists(ini_path):
-                raise ConfigurationError(
-                    "Failed to load BACpypes.ini",
-                    config_file="./discovery/BACpypes.ini",
-                )
+#             sys.argv = ["django_bacnet", "--ini", ini_path]
+#             args = ConfigArgumentParser(
+#                 description="Django BACnet Discovery"
+#             ).parse_args()
+#             bacnet_config = args.ini
+#             sys.argv = original_argv
 
-            sys.argv = ["django_bacnet", "--ini", ini_path]
-            args = ConfigArgumentParser(
-                description="Django BACnet Discovery"
-            ).parse_args()
-            bacnet_config = args.ini
-            sys.argv = original_argv
+#             logger.debug("✅ Configuration loaded:")
+#             logger.debug(f"   Device Name: {bacnet_config}")
 
-            logger.debug("✅ Configuration loaded:")
-            logger.debug(f"   Device Name: {bacnet_config}")
+#         except Exception as e:
+#             logger.debug(f"Error loading BACnet configuration: {e}")
+#             sys.argv = original_argv
+#             bacnet_config = None
 
-        except Exception as e:
-            logger.debug(f"Error loading BACnet configuration: {e}")
-            sys.argv = original_argv
-            bacnet_config = None
-
-    return bacnet_config
+#     return bacnet_config
 
 
 def dashboard(request):
     devices = (
-        BACnetDevice.objects.all()
+        BACnetDevice.objects.filter(is_active=True)
         .annotate(point_count=Count("points"))
         .order_by("-last_seen")
     )
@@ -111,30 +95,30 @@ def device_detail(request, device_id):
     device = get_object_or_404(BACnetDevice, device_id=device_id)
     points = device.points.all().order_by("object_type", "instance_number")
 
-    _trigger_auto_refresh_if_needed(device, points)
+    # _trigger_auto_refresh_if_needed(device, points)
     points_by_type = _organise_points_by_type(points)
     context = _build_device_context(device, points, points_by_type)
 
     return render(request, "discovery/device_detail.html", context)
 
 
-def _trigger_auto_refresh_if_needed(device, points):
-    if not (points.exists() and device.points_read):
-        return
+# def _trigger_auto_refresh_if_needed(device, points):
+#     if not (points.exists() and device.points_read):
+#         return
 
-    try:
-        client = ensure_bacnet_client()
-        if not client:
-            return
-        latest_reading = points.filter(value_last_read__isnull=False).first()
-        if not _should_refresh_readings(latest_reading):
-            return
+#     try:
+#         client = ensure_bacnet_client()
+#         if not client:
+#             return
+#         latest_reading = points.filter(value_last_read__isnull=False).first()
+#         if not _should_refresh_readings(latest_reading):
+#             return
 
-        client.read_all_point_values(device.device_id)
-        logger.debug(f"Triggered point value reading for device {device.device_id}")
+#         client.read_all_point_values(device.device_id)
+#         logger.debug(f"Triggered point value reading for device {device.device_id}")
 
-    except Exception as e:
-        logger.error(f"Error triggering point value reading: {e}")
+#     except Exception as e:
+#         logger.error(f"Error triggering point value reading: {e}")
 
 
 def _should_refresh_readings(latest_reading):
@@ -166,131 +150,125 @@ def _build_device_context(device, points, points_by_type):
     return context
 
 
-def ensure_bacnet_client():
-    global bacnet_client
-
-    if bacnet_client is not None:
-        return bacnet_client
-
-    logger.debug("🔧 Creating BACnet client...")
-
-    config = load_bacnet_config()
-    if config is None:
-        raise ConfigurationError(
-            "Could not load BACnet configuration from BACpypes.ini"
-        )
-
-    device = _create_local_device(config)
-    logger.debug(f"📡 Creating BACnet client with address: {config.address}")
-
-    bacnet_client = _create_bacnet_client(config, device)
-    _start_bacnet_thread()
-
-    return bacnet_client
-
-
-def _create_bacnet_client(config, device):
-    def callback(event_type, data):
-        logger.debug(f"BACnet event: {event_type} - {data}")
-
-    return DjangoBACnetClient(callback, device, config.address)
-
-
-def _start_bacnet_thread():
-    def run_bacnet():
-        enable_sleeping()
-        run()
-
-    bacnet_thread = threading.Thread(target=run_bacnet, daemon=True)
-    bacnet_thread.start()
-
-    logger.debug("✅ BACnet client started!")
-
-
-def _create_local_device(config):
-    return LocalDeviceObject(
-        objectName=config.objectname,
-        objectIdentifier=int(config.objectidentifier),
-        maxApduLengthAccepted=int(config.maxapdulengthaccepted),
-        segmentationSupported=config.segmentationsupported,
-        vendorIdentifier=int(config.vendoridentifier),
-    )
-
-
 @csrf_exempt
-@requires_client_only
-def start_discovery(request, client):
+def discover_device_points(request, device_id):
     if request.method == "POST":
-        logger.debug("ensure_bacnet_client")
-        client.send_whois()
+        try:
+            device = get_object_or_404(BACnetDevice, device_id=device_id)
+            logger.debug(f"device_ID: {device.device_id}")
+            service = BACnetService()
+            point_list = service.discover_device_points(device)
+            # client.read_device_objects(device.device_id)
 
-        return JsonResponse(
-            {
-                "success": True,
-                "message": f"Device discovery started"
-                f" - devices will appear in a few seconds",
-            }
-        )
+            if point_list is not None:
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "message": f"Discovered {len(point_list)} points for"
+                        f" device {device.device_id}",
+                        "device_id": device.device_id,
+                        "estimated_time": "5-10 seconds",
+                        "status": "reading",
+                    }
+                )
+            else:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": f"Failed to discover points for "
+                        f"device {device.device_id}",
+                        "device_id": device.device_id,
+                    }
+                )
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return JsonResponse({"success": False, "message": str(e)})
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
 
 @csrf_exempt
-@requires_device_and_client
-def read_device_points(request, device_id, device, client):
+def start_discovery(request):
     if request.method == "POST":
-        logger.debug(f"device_ID: {device_id}")
-        client.read_device_objects(device.device_id)
+        try:
+            logger.debug("ensure_bacnet_client")
+            service = BACnetService()
+            devices = service.discover_devices()
 
-        return JsonResponse(
-            {
-                "success": True,
-                "message": f"Started reading points for device {device.device_id}",
-                "device_id": device.device_id,
-                "estimated_time": "5-10 seconds",
-                "status": "reading",
-            }
-        )
+            if devices is not None:
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "message": f"Device discovery completed with"
+                        f" {len(devices)} devices",
+                    }
+                )
+            else:
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "message": "Device discovery failed",
+                    }
+                )
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return JsonResponse({"success": False, "message": str(e)})
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
 
 @csrf_exempt
-@requires_device_and_client
-def read_point_values(request, device_id, device, client):
+def read_point_values(request):
     if request.method == "POST":
-        client.read_all_point_values(device.device_id)
+        try:
+            service = BACnetService()
+            result = service.collect_all_readings()
 
-        return JsonResponse(
-            {
-                "success": True,
-                "message": f"Started reading sensor values for device {device.device_id}",
-            }
-        )
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f"Read {result['readings_collected']} sensor values",
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return JsonResponse({"success": False, "message": str(e)})
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
 
 @csrf_exempt
-@requires_device_and_client
-def read_single_point_value(
-    request, device_id, device, client, object_type, instance_number
-):
+def read_single_point_value(request, device_id, object_type, instance_number):
     if request.method == "POST":
-        client.read_point_value(device_id, object_type, instance_number)
+        try:
+            device = get_object_or_404(BACnetDevice, device_id=device_id)
+            point = get_object_or_404(
+                BACnetPoint,
+                device=device,
+                object_type=object_type,
+                instance_number=instance_number,
+            )
+            service = BACnetService()
+            value = service.read_point_value(device, point)
 
-        return JsonResponse(
-            {
-                "success": True,
-                "message": f"Reading values from {object_type}:{instance_number}",
-            }
-        )
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f"Reading values from {object_type}:{instance_number}",
+                    "value": value,
+                    "point_id": point.id,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return JsonResponse({"success": False, "message": str(e)})
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
 
-@requires_device_and_client
-def get_device_value_api(request, device_id, device, client):
+def get_device_value_api(request, device_id):
+    device = get_object_or_404(BACnetDevice, device_id=device_id)
     points_data = []
     for point in device.points.all().order_by("object_type", "instance_number"):
         point_data = {
@@ -363,12 +341,18 @@ def get_point_history_api(request, point_id):
 def clear_devices(request):
     if request.method == "POST":
         try:
-            device_count, point_count = clear_all_devices()
+            device_count = BACnetDevice.objects.filter(is_active=True).count()
+            point_count = BACnetPoint.objects.filter(device__is_active=True).count()
+
+            BACnetDevice.objects.filter(is_active=True).update(
+                is_active=False, deactivated_at=timezone.now()
+            )
 
             return JsonResponse(
                 {
                     "success": True,
-                    "message": f"Cleared {device_count} devices and {point_count} points",
+                    "message": f"Cleared {device_count} devices and"
+                    f" {point_count} points",
                 }
             )
         except Exception as e:
@@ -380,7 +364,7 @@ def clear_devices(request):
 
 
 def device_list_api(request):
-    devices = BACnetDevice.objects.all().values(
+    devices = BACnetDevice.objects.filter(is_active=True).values(
         "device_id", "address", "vendor_id", "is_online", "last_seen", "points_read"
     )
 
@@ -397,7 +381,7 @@ def debug_urls(request):
     }
 
     try:
-        device = BACnetDevice.objects.first()
+        device = BACnetDevice.objects.filter(is_active=True).first()
         if device:
             urls["device_detail_real"] = reverse(
                 "discovery:device_detail", args=[device.device_id]
@@ -407,7 +391,7 @@ def debug_urls(request):
             )
         else:
             urls["read_points_example"] = "/api/read-points/123123/"
-    except:
+    except Exception:
         urls["read_points_example"] = "/api/read-points/123123"
 
     return JsonResponse(
@@ -415,19 +399,19 @@ def debug_urls(request):
     )
 
 
-def config_info(request):
-    config = load_bacnet_config()
-    if config:
-        config_data = {
-            "device_name": config.name,
-            "device_id": config.instance,
-            "address": config.address,
-            "vendor_id": config.vendorid,
-            "max_apdu_length": config.maxpdulength,
-            "segmentation": config.segmentation,
-        }
-        return JsonResponse({"success": True, "config": config_data})
-    else:
-        return JsonResponse(
-            {"success": False, "config": "Could not load BACnet configuration"}
-        )
+# def config_info(request):
+#     config = load_bacnet_config()
+#     if config:
+#         config_data = {
+#             "device_name": config.name,
+#             "device_id": config.instance,
+#             "address": config.address,
+#             "vendor_id": config.vendorid,
+#             "max_apdu_length": config.maxpdulength,
+#             "segmentation": config.segmentation,
+#         }
+#         return JsonResponse({"success": True, "config": config_data})
+#     else:
+#         return JsonResponse(
+#             {"success": False, "config": "Could not load BACnet configuration"}
+#         )

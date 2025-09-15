@@ -206,4 +206,14 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
 CLAUDE.md
+
+# Environment files
+.env
+.env.production
+.env.local
+.env.staging
+*.env
+!.env.example
