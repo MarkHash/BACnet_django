@@ -175,16 +175,27 @@ class TestAPIViews(BaseTestCase):
     def test_read_point_values_success(self):
         with patch("discovery.views.BACnetService") as mock_ensure:
             mock_service = Mock()
-            mock_service.collect_all_readings.return_value = {"readings_collected": 5}
+            # Mock the methods the view actually calls:
+            mock_service._initialise_results.return_value = {
+                "readings_collected": 5,
+                "devices_processed": 0,
+            }
+            mock_service._connect.return_value = True
+            mock_service.read_device_points.return_value = None
+            mock_service._disconnect.return_value = None
             mock_ensure.return_value = mock_service
-            response = self.client.post("/api/read-values/")
+
+            response = self.client.post(f"/api/read-values/{self.device.device_id}/")
 
             self.assertEqual(response.status_code, 200)
             data = json.loads(response.content)
             self.assertTrue(data["success"])
             self.assertIn("Read", data["message"])
 
-            mock_service.collect_all_readings.assert_called_once()
+            # Assert the methods that are actually called:
+            mock_service._initialise_results.assert_called_once()
+            mock_service._connect.assert_called_once()
+            mock_service.read_device_points.assert_called_once()
 
 
 class TestErrorHandling(BaseTestCase):

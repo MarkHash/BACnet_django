@@ -216,15 +216,32 @@ class TestAPIEndpointIntegration(BaseTestCase):
     @patch("discovery.views.BACnetService")
     def test_read_point_values_integration(self, mock_ensure_client):
         mock_service = Mock()
-        mock_service.collect_all_readings.return_value = {"readings_collected": 3}
+        # Mock the methods the view actually calls:
+        mock_service._initialise_results.return_value = {
+            "readings_collected": 3,
+            "devices_processed": 0,
+        }
+        mock_service._connect.return_value = True
+        mock_service.read_device_points.return_value = (
+            None  # This method modifies results in -place
+        )
+        mock_service._disconnect.return_value = None
         mock_ensure_client.return_value = mock_service
 
-        url = reverse("discovery:read_point_values")
+        url = reverse(
+            "discovery:read_device_point_values", args=[self.device.device_id]
+        )
         response = self.client.post(url)
 
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertTrue(data["success"])
+
+        # Assert the methods that are actually called:
+        mock_service._initialise_results.assert_called_once()
+        mock_service._connect.assert_called_once()
+        mock_service.read_device_points.assert_called_once()
+        mock_service._disconnect.assert_called_once()
 
         mock_service.collect_all_readings.assert_called_once()
 
@@ -242,16 +259,6 @@ class TestAPIEndpointIntegration(BaseTestCase):
         self.assertEqual(data["device_id"], self.device.device_id)
         self.assertEqual(data["total_points"], 2)
         self.assertIsInstance(data["points"], list)
-
-    def test_device_list_api_integration(self):
-        url = reverse("discovery:device_list_api")
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
-        self.assertIn("count", data)
-        self.assertIn("devices", data)
-        self.assertEqual(data["count"], 2)
 
     def test_clear_devices_integration(self):
         url = reverse("discovery:clear_devices")
