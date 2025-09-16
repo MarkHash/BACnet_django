@@ -4,6 +4,13 @@ import BAC0
 from django.utils import timezone
 
 from .constants import BACnetConstants
+from .exceptions import (
+    BACnetBatchReadError,
+    BACnetConnectionError,
+    BACnetDeviceError,
+    BACnetPropertyReadError,
+    BACnetServiceError,
+)
 from .models import BACnetDevice, BACnetPoint, BACnetReading, DeviceStatusHistory
 
 logging.basicConfig(
@@ -27,6 +34,24 @@ class BACnetService:
         self.bacnet = None
         self.callback = callback
 
+    def __enter__(self):
+        if self._connect():
+            return self
+        raise BACnetConnectionError("Failed to connect to BACnet")
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._disconnect()
+        return False
+
+    @staticmethod
+    def requires_connection(func):
+        def wrapper(self, *args, **kwargs):
+            if not self.bacnet:
+                raise ConnectionError("BACnet not connected")
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
     def _connect(self):
         """
         Connect to BACnet.
@@ -45,9 +70,10 @@ class BACnetService:
 
             return True
 
+        except (OSError, ConnectionError) as e:
+            raise BACnetConnectionError(f"Network connection failed: {e}")
         except Exception as e:
-            logger.error(f"Error: {e}")
-            return False
+            raise BACnetConnectionError(f"Network connection failed: {e}")
 
     def _disconnect(self):
         """
@@ -129,7 +155,7 @@ class BACnetService:
                 return devices
 
             # Real BAC0 discovery
-            if self._connect():
+            with self:
                 self._log("🔍 Starting device discovery...")
                 devices = self.bacnet.discover()
 
@@ -143,7 +169,7 @@ class BACnetService:
                             defaults={
                                 "address": str(device_info[0]),
                                 "vendor_id": getattr(
-                                    device_info, "vendorIdentifier", 0
+                                    device_info, BACnetConstants.VENDOR_IDENTIFIER, 0
                                 ),
                                 "is_online": True,
                                 "is_active": True,
@@ -170,11 +196,12 @@ class BACnetService:
                 else:
                     self._log("✅ Found 0 devices")
 
-                self._disconnect()
                 return devices
-
+        except (OSError, ConnectionError) as e:
+            raise BACnetConnectionError(f"Device discovery connection failed: {e}")
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.error(f"Device discovery failed: {e}")
+            raise BACnetServiceError(f"Device discovery failed: {e}")
 
     # def read_all_device_points(self, device_id):
     #     try:
@@ -193,9 +220,11 @@ class BACnetService:
             read_string = f"{device.address} device {device.device_id} {property_name}"
             return self.bacnet.read(read_string)
 
+        except (OSError, AttributeError) as e:
+            raise BACnetPropertyReadError(device.device_id, property_name, e)
         except Exception as e:
-            self._log(f"⚠️ Could not read {property_name}: {e}")
-            return None
+            self._log(f"⚠️ Could not read {property_name} from {device.device_id}: {e}")
+            raise BACnetPropertyReadError(device.device_id, property_name, e)
 
     def discover_device_points(self, device):
         """
@@ -204,14 +233,18 @@ class BACnetService:
 
         """
         try:
-            if self._connect():
-                vendor_id = self.read_device_property(device, "vendorIdentifier")
+            with self:
+                vendor_id = self.read_device_property(
+                    device, BACnetConstants.VENDOR_IDENTIFIER
+                )
                 if vendor_id:
                     device.vendor_id = vendor_id
                     device.save()
                     self._log(f"📋 Updated vendor ID: {vendor_id}")
 
-                point_list = self.read_device_property(device, "objectList")
+                point_list = self.read_device_property(
+                    device, BACnetConstants.OBJECT_LIST
+                )
 
                 for point in point_list:
                     try:
@@ -239,12 +272,17 @@ class BACnetService:
                 device.points_read = True
                 device.save()
 
-                self._disconnect()
                 return point_list
 
+        except BACnetPropertyReadError as e:
+            raise BACnetDeviceError(device.device_id, f"Point discovery failed: {e}", e)
+        except (OSError, ConnectionError) as e:
+            raise BACnetDeviceError(
+                device.device_id, "Point discovery connection failed", e
+            )
         except Exception as e:
-            logger.error(f"Error: {e}")
-            return None
+            logger.error(f"Point discovery failed for device {device.device_id}: {e}")
+            raise BACnetDeviceError(device.device_id, f"Point discovery failed: {e}", e)
 
     def read_point_value(self, device, point):
         """
@@ -254,26 +292,36 @@ class BACnetService:
             point (object): point object
         """
         try:
-            if self._connect():
+            with self:
                 read_string = (
                     f"{device.address} {point.object_type} "
-                    f"{point.instance_number} presentValue"
+                    f"{point.instance_number} {BACnetConstants.PRESENT_VALUE}"
                 )
                 self._log(f"📖 Reading {point.identifier}")
                 value = self.bacnet.read(read_string)
 
-                self._disconnect()
                 return value
 
+        except BACnetConnectionError:
+            raise
+        except (OSError, ConnectionError) as e:
+            raise BACnetDeviceError(
+                device.device_id, f"Failed to read point {point.identifier}", e
+            )
         except Exception as e:
-            logger.error(f"Error: {e}")
-            return None
+            logger.error(
+                f"Failed to read point {point.identifier} "
+                f"from device {device.device_id}: {e}"
+            )
+            raise BACnetDeviceError(
+                device.device_id, f"Failed to read point {point.identifier}", e
+            )
 
     def _read_single_point(self, device, point, results):
         try:
             read_string = (
                 f"{device.address} {point.object_type} "
-                f"{point.instance_number} presentValue"
+                f"{point.instance_number} {BACnetConstants.PRESENT_VALUE}"
             )
             self._log(f"📖 Reading {point.identifier}")
             value = self.bacnet.read(read_string)
@@ -302,6 +350,85 @@ class BACnetService:
             results["devices_failed"] += 1
             self._log(f"❌ Device {device.device_id} failed: {e}")
 
+    def _build_batch_request(self, device, points_list):
+        request_parts = [device.address]
+
+        for point in points_list:
+            request_parts.extend(
+                [
+                    point.object_type,
+                    str(point.instance_number),
+                    BACnetConstants.PRESENT_VALUE,
+                    BACnetConstants.OBJECT_NAME,
+                ]
+            )
+            if point.object_type in BACnetConstants.ANALOG_OBJECT_TYPES:
+                request_parts.append(BACnetConstants.UNITS)
+        return request_parts
+
+    def _calculate_expected_values(self, points_list):
+        expected_values = 0
+        for point in points_list:
+            if point.object_type in BACnetConstants.ANALOG_OBJECT_TYPES:
+                expected_values += 3
+            else:
+                expected_values += 2
+        return expected_values
+
+    def _process_batch_results(self, points_list, values, results):
+        value_index = 0
+        for point in points_list:
+            present_value = values[value_index]
+            object_name = values[value_index + 1]
+
+            if point.object_type in BACnetConstants.ANALOG_OBJECT_TYPES:
+                units = values[value_index + 2]
+                value_index += 3
+            else:
+                units = None
+                value_index += 2
+
+            if present_value is not None:
+                BACnetReading.objects.create(
+                    point=point,
+                    value=str(present_value),
+                    read_time=timezone.now(),
+                )
+                point.present_value = str(present_value)
+                if object_name:
+                    point.object_name = str(object_name)
+                if units:
+                    point.units = str(units)
+                point.value_last_read = timezone.now()
+                point.save()
+                results["readings_collected"] += 1
+        return results
+
+    def _execute_batch_read(self, device, points_list, results):
+        try:
+            request_parts = self._build_batch_request(device, points_list)
+            batch_request = " ".join(request_parts)
+            values = self.bacnet.readMultiple(batch_request)
+
+            expected_values = self._calculate_expected_values(points_list)
+
+            if values and len(values) == expected_values:
+                self._log(f"✅ Batch read successful: {len(values)} values")
+
+                self._process_batch_results(points_list, values, results)
+                return True
+            else:
+                self._log(
+                    f"⚠️ Batch read mismatch: got {len(values) if values else 0} "
+                    f"values for {len(points_list)} points"
+                )
+            return False
+        except (OSError, ConnectionError) as e:
+            raise BACnetBatchReadError(device.device_id, len(points_list), e)
+        except Exception as e:
+            self._log(f"❌ Batch read failed: {e}")
+            raise BACnetBatchReadError(device.device_id, len(points_list), e)
+
     def _read_device_points_in_chunks(self, device, points_list, results):
         try:
             chunk_size = MAX_BATCH_SIZE
@@ -318,164 +445,38 @@ class BACnetService:
                     f"({len(chunk)} points)"
                 )
 
-                if not self._read_single_batch_chunk(device, chunk, results):
-                    self._log(
-                        f"⚠️ Chunk {i//chunk_size + 1} failed, falling back to "
-                        f"individual reads"
-                    )
+                try:
+                    if not self._read_single_batch_chunk(device, chunk, results):
+                        self._log(
+                            f"⚠️ Chunk {i//chunk_size + 1} failed, falling back to "
+                            f"individual reads"
+                        )
 
-                    for point in chunk:
-                        self._read_single_point(device, point, results)
+                        for point in chunk:
+                            self._read_single_point(device, point, results)
+                except BACnetBatchReadError as e:
+                    self._log(f"⚠️ Chunk {i//chunk_size + 1} failed: {e}")
+
             return True
+        except (OSError, ConnectionError) as e:
+            raise BACnetDeviceError(
+                device.device_id, "Chunked read connection failed", e
+            )
         except Exception as e:
             self._log(f"❌ Chunked batch read failed: {e}")
-            return False
+            raise BACnetDeviceError(device.device_id, "Chunked read failed", e)
 
     def _read_single_batch_chunk(self, device, chunk_points, results):
-        try:
-            request_parts = [device.address]
-            points_list = list(chunk_points)
-
-            for point in points_list:
-                request_parts.extend(
-                    [
-                        point.object_type,
-                        str(point.instance_number),
-                        "presentValue",
-                        "objectName",
-                    ]
-                )
-                if point.object_type in ["analogInput", "analogOutput", "analogValue"]:
-                    request_parts.append("units")
-
-            batch_request = " ".join(request_parts)
-            values = self.bacnet.readMultiple(batch_request)
-
-            expected_values = 0
-            for point in points_list:
-                if point.object_type in ["analogInput", "analogOutput", "analogValue"]:
-                    expected_values += 3
-                else:
-                    expected_values += 2
-
-            if values and len(values) == expected_values:
-                self._log(f"✅ Batch read successful: {len(values)} values")
-
-                value_index = 0
-                for point in points_list:
-                    present_value = values[value_index]
-                    object_name = values[value_index + 1]
-
-                    if point.object_type in [
-                        "analogInput",
-                        "analogOutput",
-                        "analogValue",
-                    ]:
-                        units = values[value_index + 2]
-                        value_index += 3
-                    else:
-                        units = None
-                        value_index += 2
-
-                    if present_value is not None:
-                        BACnetReading.objects.create(
-                            point=point,
-                            value=str(present_value),
-                            read_time=timezone.now(),
-                        )
-                        point.present_value = str(present_value)
-                        if object_name:
-                            point.object_name = str(object_name)
-                        if units:
-                            point.units = str(units)
-                        point.value_last_read = timezone.now()
-                        point.save()
-                        results["readings_collected"] += 1
-                return True
-            else:
-                self._log(
-                    f"⚠️ Batch read mismatch: got {len(values) if values else 0} "
-                    f"values for {len(points_list)} points"
-                )
-            return False
-        except Exception as e:
-            self._log(f"❌ Batch read failed: {e}")
-            return False
+        points_list = list(chunk_points)
+        return self._execute_batch_read(device, points_list, results)
 
     def _read_device_points_batch(self, device, readable_points, results):
-        try:
-            self._log(f"📦 Batch reading {len(readable_points)} points")
-            request_parts = [device.address]
-            points_list = list(readable_points)
+        points_list = list(readable_points)
 
-            if len(points_list) > MAX_BATCH_SIZE:
-                return self._read_device_points_in_chunks(device, points_list, results)
+        if len(points_list) > MAX_BATCH_SIZE:
+            return self._read_device_points_in_chunks(device, points_list, results)
 
-            for point in points_list:
-                request_parts.extend(
-                    [
-                        point.object_type,
-                        str(point.instance_number),
-                        "presentValue",
-                        "objectName",
-                    ]
-                )
-                if point.object_type in ["analogInput", "analogOutput", "analogValue"]:
-                    request_parts.append("units")
-
-            batch_request = " ".join(request_parts)
-            values = self.bacnet.readMultiple(batch_request)
-
-            expected_values = 0
-            for point in points_list:
-                if point.object_type in ["analogInput", "analogOutput", "analogValue"]:
-                    expected_values += 3
-                else:
-                    expected_values += 2
-
-            if values and len(values) == expected_values:
-                self._log(f"✅ Batch read successful: {len(values)} values")
-
-                value_index = 0
-                for point in points_list:
-                    present_value = values[value_index]
-                    object_name = values[value_index + 1]
-
-                    if point.object_type in [
-                        "analogInput",
-                        "analogOutput",
-                        "analogValue",
-                    ]:
-                        units = values[value_index + 2]
-                        value_index += 3
-                    else:
-                        units = None
-                        value_index += 2
-
-                    if present_value is not None:
-                        BACnetReading.objects.create(
-                            point=point,
-                            value=str(present_value),
-                            read_time=timezone.now(),
-                        )
-                        point.present_value = str(present_value)
-                        if object_name:
-                            point.object_name = str(object_name)
-                        if units:
-                            point.units = str(units)
-                        point.value_last_read = timezone.now()
-                        point.save()
-                        results["readings_collected"] += 1
-                return True
-            else:
-                self._log(
-                    f"⚠️ Batch read mismatch: got {len(values) if values else 0} "
-                    f"values for {len(points_list)} points"
-                )
-            return False
-        except Exception as e:
-            self._log(f"❌ Batch read failed: {e}")
-            return False
+        return self._execute_batch_read(device, points_list, results)
 
     def _initialise_results(self):
         return {
@@ -505,24 +506,14 @@ class BACnetService:
         """
         results = self._initialise_results()
         online_devices = self._get_online_devices()
-        if self._connect():
-            try:
-                for device in online_devices:
-                    self.read_device_points(device, results)
-                    results["devices_processed"] += 1
 
-                self._log(
-                    f"✅ Collected {results['readings_collected']} readings "
-                    f"from {results['devices_processed']} devices"
-                )
-                return results
-            finally:
-                self._disconnect()
-        return None
+        with self:
+            for device in online_devices:
+                self.read_device_points(device, results)
+                results["devices_processed"] += 1
 
-        # def check_device_health(self):
-        #     try:
-        #         if self._connect():
-        #             devices = self.discover_devices()
-
-        #             self._disconnect()
+            self._log(
+                f"✅ Collected {results['readings_collected']} readings "
+                f"from {results['devices_processed']} devices"
+            )
+            return results

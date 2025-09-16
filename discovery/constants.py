@@ -3,6 +3,13 @@ class BACnetConstants:
     MAX_READING_LIMIT = 50
     REFRESH_THRESHOLD_SECONDS = 300
 
+    # BACnet Property Names
+    VENDOR_IDENTIFIER = "vendorIdentifier"
+    OBJECT_LIST = "objectList"
+    PRESENT_VALUE = "presentValue"
+    OBJECT_NAME = "objectName"
+    UNITS = "units"
+
     # BACnet readable object types
     READABLE_OBJECT_TYPES = [
         "analogInput",
@@ -14,6 +21,13 @@ class BACnetConstants:
         "multiStateInput",
         "multiStateOutput",
         "multiStateValue",
+    ]
+
+    # Object Types with Units
+    ANALOG_OBJECT_TYPES = [
+        "analogInput",
+        "analogOutput",
+        "analogValue",
     ]
 
     UNIT_CONVERSIONS = {

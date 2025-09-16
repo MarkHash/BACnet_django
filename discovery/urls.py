@@ -31,18 +31,10 @@ urlpatterns = [
         name="discover_device_points",
     ),
     path("api/clear-devices/", views.clear_devices, name="clear_devices"),
-    path("api/devices/", views.device_list_api, name="device_list_api"),
-    # path("api/config/", views.config_info, name="config_info"),
-    path("api/debug/", views.debug_urls, name="debug_urls"),
     path(
         "api/read-values/<int:device_id>/",
         views.read_device_point_values,
         name="read_device_point_values",
-    ),
-    path(
-        "api/read-values/",
-        views.read_point_values,
-        name="read_point_values",
     ),
     path(
         "api/read-point/<int:device_id>/<str:object_type>/<int:instance_number>/",
@@ -53,10 +45,5 @@ urlpatterns = [
         "api/device-values/<int:device_id>/",
         views.get_device_value_api,
         name="get_device_value_api",
-    ),
-    path(
-        "api/point-history/<int:point_id>/",
-        views.get_point_history_api,
-        name="get_point_history_api",
     ),
 ]
