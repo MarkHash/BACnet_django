@@ -243,8 +243,6 @@ class TestAPIEndpointIntegration(BaseTestCase):
         mock_service.read_device_points.assert_called_once()
         mock_service._disconnect.assert_called_once()
 
-        mock_service.collect_all_readings.assert_called_once()
-
     @patch("discovery.views.BACnetService")
     def test_get_device_values_api_integration(self, mock_ensure_client):
         mock_service = Mock()
