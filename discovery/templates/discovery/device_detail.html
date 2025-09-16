@@ -132,13 +132,13 @@
                                             {% endif %}
                                         </div>
                                         <small class="text-muted">{{ point.object_type|capfirst }} {{ point.instance_number }}</small>
-                                        <br>
+                                        <!-- <br>
                                         <button class="btn btn-sm btn-outline-primary mt-2 read-single-point"
                                                 data-device-id="{{ device.device_id }}"
                                                 data-object-type="{{ point.object_type }}"
                                                 data-instance="{{ point.instance_number }}">
                                             🔄 Read Now
-                                        </button>
+                                        </button> -->
                                     </div>
                                 </div>
                             </div>
@@ -305,29 +305,29 @@
 
         const sensorContainer = document.getElementById('sensor-values-container');
 
-        if (sensorContainer) {
-            sensorContainer.addEventListener('click', function(e) {
-                if (e.target.classList.contains('read-single-point')) {
-                    const btn = e.target;
-                    const deviceId = btn.getAttribute('data-device-id');
-                    const objectType = btn.getAttribute('data-object-type');
-                    const instance = btn.getAttribute('data-instance');
+        // if (sensorContainer) {
+        //     sensorContainer.addEventListener('click', function(e) {
+        //         if (e.target.classList.contains('read-single-point')) {
+        //             const btn = e.target;
+        //             const deviceId = btn.getAttribute('data-device-id');
+        //             const objectType = btn.getAttribute('data-object-type');
+        //             const instance = btn.getAttribute('data-instance');
 
-                    const promise = apiCall(`/api/read-point/${deviceId}/${objectType}/${instance}/`, 'POST');
+        //             const promise = apiCall(`/api/read-point/${deviceId}/${objectType}/${instance}/`, 'POST');
 
-                    handleButtonState(btn,
-                        handleApiResponse(promise,
-                            (response) => {
-                                setTimeout(() => {
-                                    refreshSensorValues();
-                                }, TIMEOUTS.BUTTON_RESET);
-                            }
-                        ),
-                        "⏳ Reading..."
-                    );
-                }
-            });
-        }
+        //             handleButtonState(btn,
+        //                 handleApiResponse(promise,
+        //                     (response) => {
+        //                         setTimeout(() => {
+        //                             refreshSensorValues();
+        //                         }, TIMEOUTS.BUTTON_RESET);
+        //                     }
+        //                 ),
+        //                 "⏳ Reading..."
+        //             );
+        //         }
+        //     });
+        // }
 
         function callApiAndHandleResponse(url, method, onSuccess, onError) {
             return apiCall(url, method)
