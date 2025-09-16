@@ -103,7 +103,7 @@ class BACnetPoint(models.Model):
         self.save()
 
     def get_display_value(self):
-        if not self.present_value:
+        if self.present_value is None or self.present_value == "":
             return "N/A"
 
         value = self.present_value
@@ -118,7 +118,10 @@ class BACnetPoint(models.Model):
             value = str(value)
 
         if self.units:
-            value = f"{value} {self.units}"
+            converted_units = BACnetConstants.UNIT_CONVERSIONS.get(
+                self.units, self.units
+            )
+            value = f"{value} {converted_units}"
         return value
 
     @property

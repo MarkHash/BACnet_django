@@ -151,6 +151,39 @@ def _build_device_context(device, points, points_by_type):
 
 
 @csrf_exempt
+def read_device_point_values(request, device_id):
+    if request.method == "POST":
+        try:
+            device = get_object_or_404(BACnetDevice, device_id=device_id)
+            logger.debug(f"device_ID: {device.device_id}")
+            service = BACnetService()
+
+            results = service._initialise_results()
+            if service._connect():
+                try:
+                    service.read_device_points(device, results)
+                    results["devices_processed"] = 1
+                finally:
+                    service._disconnect()
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": (
+                        f"Read {results['readings_collected']} sensor values "
+                        f"from device {device_id}"
+                    ),
+                    "readings_collected": results["readings_collected"],
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return JsonResponse({"success": False, "message": str(e)})
+
+    return JsonResponse({"success": False, "message": "Invalid request"})
+
+
+@csrf_exempt
 def discover_device_points(request, device_id):
     if request.method == "POST":
         try:
