@@ -11,10 +11,12 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 # Celery Beat Schedule
 from celery.schedules import crontab
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -29,6 +31,11 @@ load_dotenv()
 # SECURITY WARNING: keep the secret key used in production secret!
 # SECRET_KEY = "django-insecure-51$ayn9=o0c1ynft14e(oq5xu*wfl^c)g4en0#jn&z33(v-#_%"
 SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if "test" in sys.argv or "GITHUB_ACTIONS" in os.environ:
+        SECRET_KEY = "django-insecure-test-key-for-ci-only"
+    else:
+        raise ImproperlyConfigured("SECRET_KEY environment variable is required")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
