@@ -160,38 +160,64 @@ class BACnetService:
                 devices = self.bacnet.discover()
 
                 if devices is not None:
+                    existing_device_ids = set(
+                        BACnetDevice.objects.filter(
+                            device_id__in=[device_info[1] for device_info in devices]
+                        ).values_list("device_id", flat=True)
+                    )
+                    devices_to_create = []
+                    history_records = []
                     for device_info in devices:
-                        # print(f"Device structure: {device_info}")
-                        # print(f"Type: {type(device_info)}")
-                        # print(f"Dir: {dir(device_info)}")
-                        device, created = BACnetDevice.objects.get_or_create(
-                            device_id=device_info[1],
-                            defaults={
-                                "address": str(device_info[0]),
-                                "vendor_id": getattr(
-                                    device_info, BACnetConstants.VENDOR_IDENTIFIER, 0
-                                ),
-                                "is_online": True,
-                                "is_active": True,
-                                "last_seen": timezone.now(),
-                            },
+                        device_id = device_info[1]
+                        if device_id not in existing_device_ids:
+                            devices_to_create.append(
+                                BACnetDevice(
+                                    device_id=device_id,
+                                    address=str(device_info[0]),
+                                    vendor_id=getattr(
+                                        device_info,
+                                        BACnetConstants.VENDOR_IDENTIFIER,
+                                        0,
+                                    ),
+                                    is_online=True,
+                                    last_seen=timezone.now(),
+                                )
+                            )
+                    existing_devices = BACnetDevice.objects.filter(
+                        device_id__in=existing_device_ids
+                    )
+                    device_info_map = {
+                        device_info[1]: device_info for device_info in devices
+                    }
+
+                    for device in existing_devices:
+                        device_info = device_info_map[device.device_id]
+                        device.address = str(device_info[0])
+                        device.is_online = True
+                        device.is_active = True
+                        device.last_seen = timezone.now()
+
+                    if devices_to_create:
+                        BACnetDevice.objects.bulk_create(devices_to_create)
+
+                    if existing_devices:
+                        BACnetDevice.objects.bulk_update(
+                            existing_devices,
+                            fields=["address", "is_online", "is_active", "last_seen"],
                         )
 
-                        if not created:
-                            device.address = str(device_info[0])
-                            device.is_online = True
-                            device.is_active = True
-                            device.last_seen = timezone.now()
-                            device.save()
-
-                        DeviceStatusHistory.objects.create(
+                    all_devices = BACnetDevice.objects.filter(
+                        device_id__in=[device_info[1] for device_info in devices]
+                    )
+                    history_records = [
+                        DeviceStatusHistory(
                             device=device, is_online=True, timestamp=timezone.now()
                         )
+                        for device in all_devices
+                    ]
 
-                        self._log(
-                            f"{'Created' if created else 'Updated'} device "
-                            f"{device_info[1]}"
-                        )
+                    DeviceStatusHistory.objects.bulk_create(history_records)
+
                     self._log(f"✅ Found {len(devices)} devices (real)")
                 else:
                     self._log("✅ Found 0 devices")

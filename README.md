@@ -1,15 +1,19 @@
 # BACnet Django Discovery Application
 
-A Django web application for discovering, monitoring, and reading BACnet devices on your network. This application provides a user-friendly web interface for BACnet device discovery and real-time sensor data monitoring.
+A Django web application for discovering, monitoring, and reading BACnet devices on your network. This application provides a user-friendly web interface for BACnet device discovery and real-time sensor data monitoring with optimized batch reading and PostgreSQL data persistence.
 
 ## Features
 
 - **Automatic Device Discovery**: Broadcast WhoIs requests to discover BACnet devices
 - **Point Discovery**: Read and catalog all BACnet objects from discovered devices
+- **Optimized Batch Reading**: High-performance chunked batch reading with 3.7x speedup
 - **Real-time Monitoring**: Read current sensor values from analog/binary points
 - **Web Dashboard**: Clean, responsive interface for device management
-- **Data Persistence**: Store device information, points, and readings in SQLite database
+- **PostgreSQL Database**: Robust data persistence with proper indexing
+- **Custom Exception Handling**: Professional error management and logging
+- **Unit Conversions**: Automatic conversion of engineering units to display format
 - **Admin Interface**: Django admin for advanced data management
+- **Management Commands**: Database cleanup and maintenance utilities
 
 ## Screenshots
 
@@ -21,131 +25,185 @@ A Django web application for discovering, monitoring, and reading BACnet devices
 
 ### Device Details
 - Detailed view of individual devices
-- Real-time sensor readings
+- Real-time sensor readings with automatic refresh
 - Point lists organized by object type
-- Individual point value reading
+- Bulk sensor value reading
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.12+
 - Django 5.2+
-- BACpypes library
+- PostgreSQL 12+
+- BAC0 library (23.07.03+)
 - Bootstrap 5.1.3 (loaded via CDN)
 
 ## Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd BACnet_django
-   ```
+### 1. Clone the repository
+```bash
+git clone <repository-url>
+cd BACnet_django
+```
 
-2. **Create virtual environment**
-   ```bash
-   python -m venv bacnet_env
-   source bacnet_env/bin/activate  # On Windows: bacnet_env\Scripts\activate
-   ```
+### 2. Create virtual environment
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-3. **Install dependencies**
-   ```bash
-   pip install django bacpypes
-   ```
+### 3. Install dependencies
+```bash
+pip install -r requirements.txt
+# Or manually:
+pip install django psycopg2-binary BAC0 celery redis python-dotenv
+```
 
-4. **Configure BACnet settings**
-   
-   Edit `discovery/BACpypes.ini` with your network configuration:
-   ```ini
-   [BACpypes]
-   objectName: YourDeviceName
-   address: 192.168.1.100/24
-   objectIdentifier: 599
-   maxApduLengthAccepted: 1024
-   segmentationSupported: segmentedBoth
-   vendorIdentifier: 15
-   foreignBBMD: 192.168.1.1
-   foreignTTL: 30
-   ```
+### 4. PostgreSQL Setup & Environment Variables
 
-5. **Run database migrations**
-   ```bash
-   python manage.py makemigrations
-   python manage.py migrate
-   ```
+**Create database and user (choose your own credentials):**
+```sql
+-- Connect to PostgreSQL as superuser (psql -U postgres)
+CREATE DATABASE bacnet_django;
+CREATE USER your_chosen_username WITH PASSWORD 'your_secure_password';
+GRANT ALL PRIVILEGES ON DATABASE bacnet_django TO your_chosen_username;
+```
 
-6. **Create superuser (optional)**
-   ```bash
-   python manage.py createsuperuser
-   ```
+**Or using command line:**
+```bash
+# Create database
+createdb -U postgres bacnet_django
 
-7. **Start development server**
-   ```bash
-   python manage.py runserver
-   ```
+# Create user with your chosen credentials
+psql -U postgres -c "CREATE USER your_chosen_username WITH PASSWORD 'your_secure_password';"
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE bacnet_django TO your_chosen_username;"
+```
 
-8. **Access the application**
-   - Web Interface: http://localhost:8000/
-   - Admin Interface: http://localhost:8000/admin/
+**Create `.env` file with your credentials:**
+```bash
+# .env (customize these values with your chosen credentials)
+DB_NAME=bacnet_django
+DB_USER=your_chosen_username
+DB_PASSWORD=your_secure_password
+DB_HOST=localhost
+DB_PORT=5432
+SECRET_KEY=your-secret-key-here
+DEBUG=True
+```
+
+**Database configuration (uses environment variables):**
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+    }
+}
+```
+
+**Security benefits:**
+- ✅ No passwords in version control
+- ✅ Each developer can use their own credentials
+- ✅ Different credentials for dev/staging/production
+- ✅ Easy credential rotation
+
+### 5. Run database migrations
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+### 6. Create superuser (optional)
+```bash
+python manage.py createsuperuser
+```
+
+### 7. Start development server
+```bash
+python manage.py runserver
+```
+
+### 8. Access the application
+- Web Interface: http://localhost:8000/
+- Admin Interface: http://localhost:8000/admin/
 
 ## Configuration
 
-### BACnet Configuration
+### BAC0 Configuration
 
-The application uses a configuration file at `discovery/BACpypes.ini`. Key settings:
+The application uses BAC0 for BACnet communication with automatic network detection. Key configuration options:
 
-- **objectName**: Name of your BACnet client device
-- **address**: IP address and subnet mask (e.g., 192.168.1.100/24)
-- **objectIdentifier**: Unique device ID for your client
-- **vendorIdentifier**: BACnet vendor ID
-- **foreignBBMD**: BBMD router IP (if using BACnet/IP routing)
+- **Automatic IP Detection**: BAC0 automatically detects network interface
+- **Default Port**: UDP 47808 (BACnet standard)
+- **Network Timeout**: 10 seconds for device discovery
+- **Batch Size**: Maximum 50 points per batch read for optimal performance
 
 ### Django Settings
 
 Key settings in `bacnet_project/settings.py`:
 
-- **TIME_ZONE**: Set to "Australia/Melbourne" (adjust as needed)
+- **TIME_ZONE**: Set to your local timezone
 - **DEBUG**: Set to False in production
 - **ALLOWED_HOSTS**: Add your domain/IP for production
+- **DATABASE**: PostgreSQL configuration with connection pooling
+
+### Performance Settings
+
+```python
+# Optimized settings for BACnet operations
+BACNET_CONSTANTS = {
+    'MAX_BATCH_SIZE': 50,
+    'REFRESH_THRESHOLD_SECONDS': 300,
+    'MAX_READING_LIMIT': 50,
+}
+```
 
 ## Usage
 
 ### Discovering Devices
 
 1. Navigate to the dashboard
-2. Click "Discover Devices" to send WhoIs broadcasts
+2. Click "Start Discovery" to send WhoIs broadcasts
 3. Discovered devices will appear in the devices list
 4. Device status indicators show online/offline state
 
 ### Reading Device Points
 
-1. Click "View Details" on any discovered device
-2. If points haven't been read, click "Read Points"
+1. Click device ID to view device details
+2. If points haven't been discovered, click "🔍 Discover Points"
 3. The application will discover all BACnet objects on the device
 4. Points are organized by object type (analogInput, binaryInput, etc.)
 
 ### Reading Sensor Values
 
-1. In device details, click "Read Sensor Values"
-2. Current values will be displayed for readable points
-3. Individual points can be read using "Read Now" buttons
+1. In device details, click "🌡️ Read Sensor Values"
+2. Application uses optimized batch reading for better performance
+3. Current values display with units and timestamps
 4. Values automatically refresh every 30 seconds
 
 ### Data Management
 
-- Use Django admin interface for advanced data management
-- Clear all devices and data using "Clear All Devices"
-- Export data using Django admin
+```bash
+# Clean database for fresh start
+python manage.py clean_db
+
+# Use Django admin for advanced data management
+# Export data using Django admin
+```
 
 ## API Endpoints
 
 The application provides REST API endpoints:
 
 - `POST /api/start-discovery/` - Start device discovery
-- `POST /api/read-points/{device_id}/` - Read device points
-- `POST /api/read-values/{device_id}/` - Read all point values
+- `POST /api/discover-points/{device_id}/` - Discover device points
+- `POST /api/read-values/{device_id}/` - Read all point values from device
 - `POST /api/read-point/{device_id}/{object_type}/{instance}/` - Read single point
 - `GET /api/device-values/{device_id}/` - Get current device values
 - `POST /api/clear-devices/` - Clear all devices
-- `GET /api/devices/` - List all devices
 
 ## Database Models
 
@@ -153,16 +211,22 @@ The application provides REST API endpoints:
 - Device ID, IP address, vendor information
 - Online status and timestamps
 - Point reading status
+- Soft delete with `is_active` field
 
 ### BACnetPoint
 - Object type, instance number, identifier
 - Present value, units, object name
-- Data type and metadata
+- Data type and readability flags
+- Foreign key to device
 
 ### BACnetReading
 - Historical sensor readings
 - Timestamps and quality indicators
 - Linked to specific points
+
+### DeviceStatusHistory
+- Device online/offline history
+- Status change timestamps
 
 ## Architecture
 
@@ -171,57 +235,104 @@ The application provides REST API endpoints:
 1. **Django Views** (`discovery/views.py`)
    - Web interface and API endpoints
    - Device and point management
+   - Error handling with custom exceptions
 
-2. **BACnet Client** (`discovery/bacnet_client.py`)
-   - BACpypes integration
-   - Device discovery and communication
-   - Asynchronous request handling
+2. **BACnet Service** (`discovery/services.py`)
+   - BAC0 integration with context managers
+   - Optimized batch reading with chunking
+   - Professional error handling
+   - Connection lifecycle management
 
 3. **Models** (`discovery/models.py`)
-   - Database schema
+   - PostgreSQL-optimized database schema
    - Data validation and relationships
+   - Soft delete patterns
 
-4. **Templates** (`discovery/templates/`)
+4. **Constants** (`discovery/constants.py`)
+   - BACnet property names
+   - Readable object types
+   - Unit conversion mappings
+
+5. **Custom Exceptions** (`discovery/exceptions.py`)
+   - Structured error hierarchy
+   - BACnet-specific error types
+
+6. **Templates** (`discovery/templates/`)
    - Responsive web interface
    - Bootstrap-based design
    - Real-time updates via JavaScript
 
 ### BACnet Communication
 
-- Uses BACpypes library for BACnet protocol support
+- Uses BAC0 library (Lite mode) for BACnet protocol support
 - Supports BACnet/IP over Ethernet
-- Handles WhoIs/IAmI for device discovery
-- ReadProperty requests for data collection
-- Asynchronous I/O for non-blocking operations
+- Handles WhoIs/IAm for device discovery
+- ReadProperty and ReadMultiple requests for data collection
+- Context manager pattern for automatic connection management
+- Chunked batch reading for large devices (161+ points)
+
+### Performance Optimizations
+
+- **Batch Reading**: ReadMultiple requests with up to 50 points per batch
+- **Chunked Processing**: Large devices split into manageable chunks
+- **Connection Pooling**: Efficient BAC0 connection management
+- **Database Indexing**: Optimized PostgreSQL indexes
+- **Error Recovery**: Graceful fallback to individual reads on batch failures
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **No devices discovered**
-   - Check network connectivity
-   - Verify BACpypes.ini configuration
-   - Ensure BACnet devices are on same subnet or routing is configured
+   - Check network connectivity and subnet
+   - Verify firewall settings for UDP port 47808
+   - Ensure BACnet devices are accessible
 
-2. **Permission errors**
-   - Run with appropriate network permissions
-   - Check firewall settings for UDP port 47808
+2. **PostgreSQL connection errors**
+   - Verify your `.env` file exists and has correct credentials
+   - Test connection with your credentials from `.env`:
+     ```bash
+     # Use your actual credentials from .env file
+     psql -h localhost -U your_db_user -d bacnet_django
+     ```
+   - Check PostgreSQL service is running: `sudo systemctl status postgresql`
+   - Ensure database and user exist:
+     ```sql
+     # Connect as postgres user
+     psql -U postgres
+     \l  -- List databases (should show bacnet_django)
+     \du -- List users (should show your user)
+     ```
+   - Verify `.env` file is loaded correctly:
+     ```bash
+     python -c "from dotenv import load_dotenv; import os; load_dotenv(); print('DB_USER:', os.getenv('DB_USER'))"
+     ```
 
 3. **Point reading failures**
    - Some devices may have security restrictions
    - Check device documentation for supported properties
    - Verify device is online and responsive
 
-4. **Database errors**
-   - Run migrations: `python manage.py migrate`
-   - Check SQLite file permissions
+4. **Performance issues**
+   - Monitor batch read success in logs
+   - Check network latency to devices
+   - Consider adjusting MAX_BATCH_SIZE
 
 ### Debug Information
 
 - Enable Django debug mode in settings.py
-- Check console logs in browser developer tools
+- Check application logs for BACnet communication
 - Use Django admin to inspect database records
-- Monitor BACnet traffic with Wireshark if needed
+- Monitor performance with batch read statistics
+
+### Logging
+
+```python
+# Key loggers to monitor:
+- discovery.services    # BACnet operations
+- discovery.views      # Web interface
+- BAC0_Root            # BAC0 library (set to WARNING)
+```
 
 ## Development
 
@@ -232,38 +343,142 @@ BACnet_django/
 ├── discovery/               # Main application
 │   ├── migrations/         # Database migrations
 │   ├── templates/          # HTML templates
+│   ├── management/         # Custom management commands
 │   ├── models.py          # Database models
 │   ├── views.py           # Web views and API
-│   ├── bacnet_client.py   # BACnet communication
-│   └── BACpypes.ini       # BACnet configuration
+│   ├── services.py        # BACnet communication service
+│   ├── constants.py       # BACnet constants and mappings
+│   ├── exceptions.py      # Custom exception hierarchy
+│   └── urls.py           # URL routing
+├── requirements.txt        # Python dependencies
 ├── manage.py              # Django management script
+├── .env                   # Environment variables (create from .env.example)
+├── .env.example          # Environment variables template
 └── README.md             # This file
+```
+
+### Management Commands
+
+```bash
+# Clean database for fresh start
+python manage.py clean_db
+
+# Run migrations
+python manage.py migrate
+
+# Create admin user
+python manage.py createsuperuser
+```
+
+### Testing
+
+```bash
+# Run tests
+python manage.py test
+
+# Test with logging
+python manage.py runserver 2>&1 | tee test_log.txt
 ```
 
 ### Adding Features
 
 1. **New BACnet Properties**
-   - Extend `bacnet_client.py` to read additional properties
+   - Extend `services.py` to read additional properties
    - Update models to store new data
-   - Modify templates to display information
+   - Add constants to `constants.py`
 
 2. **Additional Device Types**
-   - Update device discovery logic
-   - Add support for new object types
+   - Update device discovery logic in `services.py`
+   - Add support for new object types in constants
    - Extend admin interface
 
-3. **Data Export**
-   - Add CSV/Excel export functionality
-   - Create data visualization features
-   - Implement historical trending
+3. **Performance Monitoring**
+   - Add metrics collection
+   - Implement performance dashboards
+   - Monitor batch read efficiency
 
-## Security Notes
+## Production Deployment
 
+### Database Configuration
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+        'OPTIONS': {
+            'MAX_CONNS': 20,
+        }
+    }
+}
+```
+
+### Environment Variables
+```bash
+DEBUG=False
+SECRET_KEY=your-production-secret-key
+ALLOWED_HOSTS=your-domain.com,your-ip-address
+DB_NAME=bacnet_production
+DB_USER=bacnet_user
+DB_PASSWORD=secure-password
+```
+
+### Security Checklist
 - Change SECRET_KEY in production
-- Set DEBUG = False in production
-- Use proper database (PostgreSQL/MySQL) for production
-- Implement authentication for sensitive operations
+- Set DEBUG = False
+- Configure proper ALLOWED_HOSTS
+- Use environment variables for sensitive data
+- Implement authentication for admin access
 - Consider network segmentation for BACnet traffic
+- Regular database backups
+
+## Performance Metrics
+
+Based on testing with real BACnet devices:
+
+- **Device Discovery**: 3 devices discovered in ~9 seconds
+- **Point Discovery**: 161+ points discovered in ~1.5 seconds
+- **Batch Reading**: 3.7x faster than individual reads
+  - Individual reads: 3.82s for 28 points
+  - Batch reads: 1.03s for 28 points
+- **Large Device Handling**: 161+ points read in ~4 batches
+- **Database Performance**: PostgreSQL with optimized indexes
+
+## Celery Integration
+
+For parallel device processing (already configured):
+
+```python
+# Celery is already installed and configured in settings.py
+# Current configuration uses PostgreSQL as broker and result backend:
+
+CELERY_BROKER_URL = 'sqlalchemy+postgresql://bacnet_user:password@localhost:5432/bacnet_django'
+CELERY_RESULT_BACKEND = 'db+postgresql://bacnet_user:password@localhost:5432/bacnet_django'
+
+# Scheduled tasks configured:
+CELERY_BEAT_SCHEDULE = {
+    'calculate-hourly-stats': {
+        'task': 'discovery.tasks.calculate_hourly_stats',
+        'schedule': crontab(minute=0),  # Every hour
+    },
+    'calculate-daily-stats': {
+        'task': 'discovery.tasks.calculate_daily_stats',
+        'schedule': crontab(hour=0, minute=5),  # Daily at 00:05
+    },
+}
+```
+
+**To start Celery services:**
+```bash
+# Start Celery worker
+celery -A bacnet_project worker --loglevel=info
+
+# Start Celery beat (scheduler)
+celery -A bacnet_project beat --loglevel=info
+```
 
 ## License
 
@@ -271,55 +486,31 @@ BACnet_django/
 
 ## Contributing
 
-[Add contribution guidelines here]
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with tests
+4. Submit a pull request
 
 ## Support
 
-[Add support contact information here]
+For issues and questions:
+- Create GitHub issues for bugs and feature requests
+- Check logs for BACnet communication issues
+- Review troubleshooting section for common problems
 
+## Changelog
 
-## How to develop on a new machine 
-Basic Requirements on the New Machine
+### Version 2.0 (Current)
+- Migrated from BACpypes to BAC0
+- Implemented PostgreSQL database
+- Added optimized batch reading
+- Custom exception handling
+- Context manager pattern
+- Unit conversion system
+- Performance improvements (3.7x faster)
 
-  Install Docker:
-  # On macOS (with Homebrew)
-  brew install docker docker-compose
-
-  # On Ubuntu/Linux
-  sudo apt update
-  sudo apt install docker.io docker-compose
-
-  # On Windows
-  # Download Docker Desktop from docker.com
-
-  Method 1: Git Clone (Recommended)
-
-  On the new machine:
-  # Clone your repository
-  git clone https://github.com/your-username/BACnet_django.git
-  cd BACnet_django
-
-  # Start all services
-  docker-compose up --build
-
-  # In another terminal, run migrations
-  docker-compose exec web python manage.py migrate
-
-  # Create superuser
-  docker-compose exec web python manage.py createsuperuser
-
-  Method 2: Share Docker Images (Advanced)
-
-  Build and push images to Docker Hub:
-  # On your machine, build and tag the image
-  docker build -t your-dockerhub-username/bacnet-django .
-  docker push your-dockerhub-username/bacnet-django
-
-  # Update docker-compose.yml to use the image
-  # Instead of: build: .
-  # Use: image: your-dockerhub-username/bacnet-django
-
-  On the new machine:
-  # Just pull and run
-  docker-compose pull
-  docker-compose up
+### Version 1.0
+- Initial release with BACpypes
+- SQLite database
+- Basic device discovery
+- Individual point reading

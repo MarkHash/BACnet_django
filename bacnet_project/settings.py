@@ -10,36 +10,46 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+# Celery Beat Schedule
+from celery.schedules import crontab
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv()
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-51$ayn9=o0c1ynft14e(oq5xu*wfl^c)g4en0#jn&z33(v-#_%"
+# SECRET_KEY = "django-insecure-51$ayn9=o0c1ynft14e(oq5xu*wfl^c)g4en0#jn&z33(v-#_%"
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'handlers': {
-#         'console': {
-#             'class': 'logging.StreamHandler',
-#         },
-#     },
-#     'loggers': {
-#         'django': {
-#             'handlers': ['console'],
-#             'level': 'DEBUG',
-#         },
-#     },
-# }
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "django.utils.autoreload": {
+            "level": "WARNING",  # Hide file watching spam
+        },
+        "BAC0_Root": {
+            "level": "WARNING",  # Hide BAC0 debug noise
+        },
+    },
+}
 
 ALLOWED_HOSTS = []
 
@@ -100,11 +110,11 @@ WSGI_APPLICATION = "bacnet_project.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "bacnet_django",
-        "USER": "bacnet_user",
-        "PASSWORD": "password",
-        "HOST": "localhost",
-        "PORT": "5432",
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("DB_HOST", "localhost"),
+        "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
 
@@ -113,7 +123,8 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": "django.contrib.auth.password_validation."
+        "UserAttributeSimilarityValidator",
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
@@ -153,18 +164,19 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Celery Configuration
 # CELERY_BROKER_URL = 'django://'
 CELERY_BROKER_URL = (
-    "sqlalchemy+postgresql://bacnet_user:password@localhost:5432/bacnet_django"
+    f"sqlalchemy+postgresql://{os.getenv('DB_USER')}:"
+    f"{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:"
+    f"{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
 )
 CELERY_RESULT_BACKEND = (
-    "db+postgresql://bacnet_user:password@localhost:5432/bacnet_django"
+    f"db+postgresql://{os.getenv('DB_USER')}:"
+    f"{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:"
+    f"{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
 )
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
-
-# Celery Beat Schedule
-from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {
     "calculate-hourly-stats": {

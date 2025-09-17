@@ -1,0 +1,140 @@
+# BACnet Django TODO List
+
+## Environment Variables Implementation for Database Credentials
+
+### Priority: Medium
+### Description: Replace hardcoded database credentials with environment variables for better security
+
+### Implementation Steps:
+
+1. **Install python-dotenv dependency**
+   ```bash
+   pip install python-dotenv
+   ```
+   - Add to requirements.txt
+
+2. **Create .env file template**
+   ```bash
+   # .env (user customizes these values)
+   DB_NAME=bacnet_django
+   DB_USER=your_chosen_username
+   DB_PASSWORD=your_secure_password
+   DB_HOST=localhost
+   DB_PORT=5432
+   SECRET_KEY=your-secret-key-here
+   DEBUG=True
+   ```
+
+3. **Update settings.py to use environment variables**
+   ```python
+   import os
+   from dotenv import load_dotenv
+
+   load_dotenv()
+
+   DATABASES = {
+       'default': {
+           'ENGINE': 'django.db.backends.postgresql',
+           'NAME': os.getenv('DB_NAME'),
+           'USER': os.getenv('DB_USER'),
+           'PASSWORD': os.getenv('DB_PASSWORD'),
+           'HOST': os.getenv('DB_HOST', 'localhost'),
+           'PORT': os.getenv('DB_PORT', '5432'),
+       }
+   }
+
+   # Update Celery URLs to use environment variables
+   CELERY_BROKER_URL = f"sqlalchemy+postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+   CELERY_RESULT_BACKEND = f"db+postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+
+   # Update SECRET_KEY
+   SECRET_KEY = os.getenv('SECRET_KEY')
+   ```
+
+4. **Add .env to .gitignore**
+   ```bash
+   # Add to .gitignore file
+   .env
+   ```
+
+5. **Create .env.example file for documentation**
+   ```bash
+   # .env.example (template for users)
+   DB_NAME=bacnet_django
+   DB_USER=your_database_username
+   DB_PASSWORD=your_database_password
+   DB_HOST=localhost
+   DB_PORT=5432
+   SECRET_KEY=your-secret-key-here
+   DEBUG=True
+   ```
+
+6. **Update README.md.tmp with new setup instructions**
+   - Replace hardcoded credentials section
+   - Add environment variable setup steps
+   - Update PostgreSQL setup to mention user-chosen credentials
+   - Add .env file creation instructions
+
+### Benefits:
+- ✅ No passwords in version control
+- ✅ Each user can choose their own credentials
+- ✅ Different credentials for dev/staging/production
+- ✅ Easy credential rotation
+- ✅ Better security practices
+
+### Files to modify:
+- settings.py
+- .gitignore
+- requirements.txt (add python-dotenv)
+- README.md.tmp
+- Create: .env.example
+
+---
+
+## Future Enhancements
+
+### Parallel Device Processing with Celery
+- **Status**: Celery already configured, tasks need implementation
+- **Priority**: Low
+- **Description**: Implement parallel processing for multiple BACnet devices
+
+### Performance Monitoring
+- **Priority**: Low
+- **Description**: Add metrics collection for batch read performance
+
+### Advanced Error Handling
+- **Priority**: Low
+- **Description**: Enhance error recovery and retry mechanisms
+
+### Data Export Features
+- **Priority**: Low
+- **Description**: Add CSV/Excel export for sensor readings
+
+---
+
+## Completed Items ✅
+
+### Fix GitHub Actions test failures for removed API endpoints
+- Updated test_integration.py and test_views.py
+- Fixed API endpoint references
+- All tests now passing
+
+### Remove individual 'Read Now' buttons from device detail UI
+- Commented out individual point read buttons
+- Simplified UI to use bulk operations only
+- Improved user experience
+
+### BACnet Service Refactoring
+- Migrated from BACpypes to BAC0
+- Implemented PostgreSQL database
+- Added optimized batch reading (3.7x performance improvement)
+- Custom exception handling
+- Context manager pattern
+- Unit conversion system
+- Chunked reading for large devices (161+ points)
+
+### Performance Optimizations
+- Batch reading with readMultiple
+- Chunked processing for large devices
+- Connection management with context managers
+- Error recovery with fallback to individual reads
