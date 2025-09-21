@@ -1,6 +1,8 @@
 import logging
+from datetime import timedelta
 
-from django.db.models import Count
+from django.db.models import Avg, Count, FloatField, Max, Min
+from django.db.models.functions import Cast
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -374,6 +376,83 @@ def devices_status_api(request):
             {
                 "success": False,
                 "error": "Failed to retrieve device status",
+                "timestamp": timezone.now().isoformat(),
+            },
+            status=500,
+        )
+
+
+def device_trends_api(request, device_id):
+    """
+    GET /api/devices/{id}/analytics/trends/
+    ?period=24hours&points=analogInput:100,analogInput:101
+    Returns historical data trends for specific device points
+    """
+
+    try:
+        device = get_object_or_404(BACnetDevice, device_id=device_id)
+        all_points = device.points.all()
+        period = request.GET.get("period", "24hours")
+        start_time = timezone.now() - timedelta(
+            hours=BACnetConstants.PERIOD_PARAMETERS[period]
+        )
+        points_param = request.GET.get("points", "")
+        if points_param:
+            points_list = points_param.split(",")
+            points = all_points.filter(identifier__in=points_list)
+        else:
+            points = all_points
+
+        points_info = []
+
+        for point in points:
+            readings = point.readings.filter(read_time__gte=start_time)
+            stats = readings.aggregate(
+                min_value=Min(Cast("value", FloatField())),
+                max_value=Max(Cast("value", FloatField())),
+                avg_value=Avg(Cast("value", FloatField())),
+                count=Count("id"),
+            )
+            points_info.append(
+                {
+                    "point_identifier": point.identifier,
+                    "readings": [
+                        {
+                            "timestamp": r.read_time.isoformat(),
+                            "value": float(r.value) if r.value else None,
+                        }
+                        for r in readings.order_by("read_time")
+                    ],
+                    "statistics": {
+                        "min": round(stats["min_value"], 2)
+                        if stats["min_value"]
+                        else None,
+                        "max": round(stats["max_value"], 2)
+                        if stats["max_value"]
+                        else None,
+                        "avg": round(stats["avg_value"], 2)
+                        if stats["avg_value"]
+                        else None,
+                        "count": stats["count"],
+                    },
+                }
+            )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "device_id": device_id,
+                "period": period,
+                "points": points_info,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in device_trends_api: {e}")
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Failed to retrieve device trends data",
                 "timestamp": timezone.now().isoformat(),
             },
             status=500,

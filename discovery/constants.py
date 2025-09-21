@@ -53,3 +53,11 @@ class BACnetConstants:
         "kilograms": "kg",
         "metersPerSecond": "m/s",
     }
+
+    PERIOD_PARAMETERS = {
+        "1hour": 1,
+        "6hours": 6,
+        "24hours": 24,
+        "7days": 7 * 24,
+        "30days": 30 * 24,
+    }
