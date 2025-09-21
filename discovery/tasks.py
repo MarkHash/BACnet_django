@@ -125,8 +125,8 @@ def calculate_point_stats_manual(point_id, aggregation_type="hourly", hours_back
         return {"error": "Point not found"}
 
 
-@shared_task
-def discover_devices_task(mock_mode=False):
+@shared_task(bind=True, queue="bacnet")
+def discover_devices_task(self, mock_mode=False):
     try:
         service = BACnetService()
         return service.discover_devices(mock_mode=mock_mode)
@@ -135,7 +135,7 @@ def discover_devices_task(mock_mode=False):
         return {"error": str(e)}
 
 
-@shared_task
-def collect_readings_task():
+@shared_task(bind=True, queue="bacnet")
+def collect_readings_task(self):
     service = BACnetService()
     return service.collect_all_readings()

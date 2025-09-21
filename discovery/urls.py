@@ -46,4 +46,5 @@ urlpatterns = [
         views.get_device_value_api,
         name="get_device_value_api",
     ),
+    path("api/devices/status/", views.devices_status_api, name="device_status_api"),
 ]

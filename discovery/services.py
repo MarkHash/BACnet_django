@@ -229,18 +229,6 @@ class BACnetService:
             logger.error(f"Device discovery failed: {e}")
             raise BACnetServiceError(f"Device discovery failed: {e}")
 
-    # def read_all_device_points(self, device_id):
-    #     try:
-    #         if self._connect():
-    #             devices = self.discover_devices()
-    #             for device in devices:
-    #                 device.read('device:X objectList')
-
-    #             self._disconnect()
-
-    #     except Exception as e:
-    #         logger.error(f"Error: {e}")
-
     def read_device_property(self, device, property_name):
         try:
             read_string = f"{device.address} device {device.device_id} {property_name}"

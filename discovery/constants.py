@@ -2,6 +2,7 @@ class BACnetConstants:
     # Time and limits
     MAX_READING_LIMIT = 50
     REFRESH_THRESHOLD_SECONDS = 300
+    STALE_THRESHOLD_SECONDS = 3600
 
     # BACnet Property Names
     VENDOR_IDENTIFIER = "vendorIdentifier"

@@ -196,26 +196,6 @@ def start_discovery(request):
     return JsonResponse({"success": False, "message": "Invalid request"})
 
 
-# @csrf_exempt
-# def read_point_values(request):
-#     if request.method == "POST":
-#         try:
-#             service = BACnetService()
-#             result = service.collect_all_readings()
-
-#             return JsonResponse(
-#                 {
-#                     "success": True,
-#                     "message": f"Read {result['readings_collected']} sensor values",
-#                 }
-#             )
-#         except Exception as e:
-#             logger.error(f"Error: {e}")
-#             return JsonResponse({"success": False, "message": str(e)})
-
-#     return JsonResponse({"success": False, "message": "Invalid request"})
-
-
 @csrf_exempt
 def read_single_point_value(request, device_id, object_type, instance_number):
     if request.method == "POST":
@@ -279,43 +259,6 @@ def get_device_value_api(request, device_id):
     )
 
 
-# def get_point_history_api(request, point_id):
-#     try:
-#         point = get_object_or_404(BACnetPoint, id=point_id)
-
-#         readings = point.readings.all()[: BACnetConstants.MAX_READING_LIMIT]
-#         readings_data = []
-
-#         for reading in readings:
-#             readings_data.append(
-#                 {
-#                     "value": reading.value,
-#                     "units": reading.units,
-#                     "display_value": reading.get_display_value(),
-#                     "read_time": reading.read_time.isoformat(),
-#                     "quality": reading.quality or "unknown",
-#                 }
-#             )
-
-#         return JsonResponse(
-#             {
-#                 "success": True,
-#                 "point": {
-#                     "id": point.id,
-#                     "identifier": point.identifier,
-#                     "object_name": point.object_name,
-#                     "current_value": point.get_display_value(),
-#                 },
-#                 "readings": readings_data,
-#                 "count": len(readings_data),
-#             }
-#         )
-#     except Exception as e:
-#         return JsonResponse(
-#             {"success": False, "message": f"Error getting point history: {str(e)}"}
-#         )
-
-
 @csrf_exempt
 def clear_devices(request):
     if request.method == "POST":
@@ -340,3 +283,98 @@ def clear_devices(request):
             )
 
     return JsonResponse({"success": False, "message": "Invalid request"})
+
+
+def devices_status_api(request):
+    """
+    GET /api/devices/status/ - ALl devices overview
+    """
+
+    try:
+        device_info = []
+        active_devices = BACnetDevice.objects.filter(is_active=True)
+        for device in active_devices:
+            device_status = "online"
+            total_points = device.points.count()
+            if device.last_seen:
+                time_since_reading = (timezone.now() - device.last_seen).total_seconds()
+            else:
+                time_since_reading = 365 * 24 * 60 * 60
+
+            if device.is_online is True:
+                if total_points == 0:
+                    device_status = "no_data"
+                elif time_since_reading > BACnetConstants.STALE_THRESHOLD_SECONDS:
+                    device_status = "stale"
+            else:
+                if time_since_reading > (7 * 24 * 60 * 60):
+                    continue
+                device_status = "offline"
+
+            all_points = device.points.all()
+            readable_points = len([p for p in all_points if p.is_readable])
+            points_with_values = device.points.filter(
+                present_value__isnull=False
+            ).count()
+
+            device_info.append(
+                {
+                    "device_id": device.device_id,
+                    "address": device.address,
+                    "statistics": {
+                        "total_points": total_points,
+                        "readable_points": readable_points,
+                        "points_with_values": points_with_values,
+                        "device_status": device_status,
+                        "last_reading_time": device.last_seen,
+                    },
+                }
+            )
+        return JsonResponse(
+            {
+                "success": True,
+                "summary": {
+                    "total_devices": len(device_info),
+                    "online_devices": len(
+                        [
+                            d
+                            for d in device_info
+                            if d["statistics"]["device_status"] == "online"
+                        ]
+                    ),
+                    "offline_devices": len(
+                        [
+                            d
+                            for d in device_info
+                            if d["statistics"]["device_status"] == "offline"
+                        ]
+                    ),
+                    "stale_devices": len(
+                        [
+                            d
+                            for d in device_info
+                            if d["statistics"]["device_status"] == "stale"
+                        ]
+                    ),
+                    "no_data_devices": len(
+                        [
+                            d
+                            for d in device_info
+                            if d["statistics"]["device_status"] == "no_data"
+                        ]
+                    ),
+                },
+                "devices": device_info,
+                "timestamp": timezone.now().isoformat(),
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error in devices_status_api: {e}")
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Failed to retrieve device status",
+                "timestamp": timezone.now().isoformat(),
+            },
+            status=500,
+        )

@@ -1,0 +1,12 @@
+# Development overrides
+services:
+  web:
+    environment:
+      - DEBUG=1
+    volumes:
+      - .:/app
+    command: python manage.py runserver 0.0.0.0:8000
+
+  db:
+    ports:
+      - "5432:5432"

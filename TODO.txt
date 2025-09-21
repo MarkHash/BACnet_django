@@ -138,3 +138,418 @@
 - Chunked processing for large devices
 - Connection management with context managers
 - Error recovery with fallback to individual reads
+
+### Docker Cross-Platform Setup (macOS ✅)
+- Separate services architecture (bridge + host networking)
+- Redis and Database connection fixes
+- Task queue routing for BACnet vs non-BACnet tasks
+- Environment variable strategy for different network modes
+
+---
+
+## Windows WSL2 Setup Guide
+
+### Current Status
+✅ macOS Docker setup complete and working
+✅ Separate services architecture implemented (bridge + host networking)
+✅ Redis and Database connections fixed
+⏳ Windows WSL2 testing pending
+
+### Windows WSL2 Setup Steps
+
+#### Step 1: Enable WSL2 (PowerShell as Administrator)
+```powershell
+# Enable WSL and Virtual Machine Platform
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+
+# Restart Windows
+shutdown /r /t 0
+```
+
+#### Step 2: Install WSL2 (After Restart)
+
+Option A - Easy Method (Windows 11 or Windows 10 build 19041+):
+```powershell
+# Open PowerShell as Administrator
+wsl --install
+```
+This automatically installs Ubuntu as default.
+
+Option B - Manual Method:
+```powershell
+# Set WSL2 as default version
+wsl --set-default-version 2
+
+# Install Ubuntu 22.04 LTS
+wsl --install -d Ubuntu-22.04
+```
+
+#### Step 3: Setup Ubuntu User
+When Ubuntu first launches:
+```bash
+# Create username and password
+Enter new UNIX username: [your-username]
+New password: [your-password]
+Retype new password: [your-password]
+```
+
+#### Step 4: Update Ubuntu
+```bash
+# Update package lists
+sudo apt update && sudo apt upgrade -y
+
+# Install essential tools
+sudo apt install -y curl wget git build-essential
+```
+
+#### Step 5: Install Docker Desktop (Windows)
+1. Download Docker Desktop for Windows
+2. Install with WSL2 backend enabled
+3. Settings → General → "Use WSL 2 based engine" ✅
+4. Settings → Resources → WSL Integration → Enable Ubuntu ✅
+
+#### Step 6: Verify Installation
+```bash
+# Check WSL version
+wsl --list --verbose
+
+# Should show:
+# NAME      STATE    VERSION
+# Ubuntu    Running  2
+
+# Test Docker in WSL2
+wsl -d Ubuntu
+docker --version
+docker-compose --version
+```
+
+#### Step 7: Setup Your Project
+```bash
+# Navigate to WSL2 filesystem (important for performance!)
+cd ~
+
+# Clone or copy your project
+git clone [your-repo]
+# OR copy from Windows: cp -r /mnt/c/path/to/your/project ./
+
+cd BACnet_django
+
+# Test your Docker setup
+docker-compose up
+```
+
+### Expected Behavior on Windows
+
+#### What Should Work Identically to macOS:
+- Docker Compose files (no changes needed)
+- Environment variables (same .env file)
+- Host networking strategy (network_mode: host works in WSL2)
+- Database URL parsing (platform-agnostic)
+- Python/Django code (cross-platform)
+
+#### Expected Log Output:
+```
+bacnet-worker-1  | Using ip : [WINDOWS_IP] on port 47808 | broadcast : [WINDOWS_BROADCAST]
+bacnet-worker-1  | 🐳 DOCKER SETTINGS - DEBUG: True, DB HOST: localhost
+web-1            | "GET / HTTP/1.1" 200 17284
+redis-1          | Ready to accept connections tcp
+db-1             | database system is ready to accept connections
+```
+
+#### Network Behavior:
+- BACnet networking: Should use Windows host IP (e.g., 192.168.1.x)
+- Database/Redis: Same localhost connections as macOS
+- Task routing: Identical queue separation
+- Web interface: Accessible at localhost:8000
+
+### Testing Plan
+
+#### Phase 1: Basic Setup Verification
+1. Install WSL2 Ubuntu (Steps 1-6 above)
+2. Verify Docker Desktop integration
+3. Clone/copy project to WSL2 filesystem
+4. Run: `docker-compose --version`
+
+#### Phase 2: Docker Services Test
+1. Navigate to project directory in WSL2
+2. Run: `docker-compose up`
+3. Verify all 6 services start successfully:
+   - db (PostgreSQL)
+   - redis
+   - web (Django)
+   - celery (background tasks)
+   - beat (task scheduler)
+   - bacnet-worker (host networking)
+
+#### Phase 3: Functionality Verification
+1. Check web interface: http://localhost:8000
+2. Verify logs show correct networking:
+   - bacnet-worker uses Windows host IP
+   - other services use container networking
+3. Confirm BACnet tasks are routed to bacnet-worker
+4. Test database connections for both networking modes
+
+#### Phase 4: Cross-Platform Validation
+1. Compare Windows behavior to macOS behavior
+2. Document any platform-specific differences
+3. Ensure identical functionality across platforms
+
+### Important Notes
+
+#### File System Performance:
+- ✅ Good: /home/username/BACnet_django (WSL2 filesystem)
+- ❌ Slow: /mnt/c/Users/... (Windows filesystem accessed from WSL2)
+
+#### VS Code Integration:
+```bash
+# Install VS Code WSL extension
+code .  # Opens project in VS Code with WSL2 backend
+```
+
+#### Network Considerations:
+- Windows host networking will use your Windows machine's IP
+- Should work identically to macOS setup
+- BACnet broadcasts will reach Windows network interface
+
+### Troubleshooting
+
+#### Common Issues:
+1. **Docker not found in WSL2**: Ensure Docker Desktop WSL integration is enabled
+2. **Slow performance**: Make sure project is on WSL2 filesystem, not /mnt/c/
+3. **Network issues**: Verify Windows firewall allows Docker/BACnet traffic
+4. **Permission errors**: Check file permissions after copying from Windows
+
+#### Success Indicators:
+- All 6 containers start without errors
+- Web interface loads at localhost:8000
+- bacnet-worker connects to Redis and Database via localhost
+- BACnet worker shows Windows host IP in logs
+- No "Name or service not known" errors
+
+### Next Steps After Windows Testing
+1. Document any platform differences
+2. Create deployment guide for both platforms
+3. Consider CI/CD pipeline for cross-platform testing
+4. Prepare for production deployment in real BACnet environment
+
+---
+
+## 5-Week Internship Development Sprint
+
+### Context
+- **Remaining Time**: 5 weeks
+- **Focus**: Containerization + REST API development
+- **Goal**: Cost-effective alternative to $30K+ BACnet licensing solutions
+- **Current Status**: Cross-platform Docker containerization complete ✅
+
+### Development Options for 5-Week Sprint
+
+#### Option 1: Advanced REST API Features ⭐ (SELECTED)
+**Focus**: Extend REST API capabilities to showcase technical depth
+
+##### 1.1 Real-time Device Status API
+**What it does:**
+- Live device health monitoring (online/offline/error states)
+- Current sensor readings with timestamps
+- Device response time metrics
+- Network connectivity status
+
+**API Examples:**
+```
+GET /api/devices/status/           # All devices overview
+GET /api/devices/123/status/       # Specific device status
+GET /api/devices/123/points/live/  # Live sensor readings
+```
+
+**Value:** Building managers see instant device health without manual checking
+
+##### 1.2 Historical Data Analytics Endpoints
+**What it does:**
+- Time-series data queries (hourly, daily, weekly trends)
+- Statistical analysis (min, max, average, patterns)
+- Energy consumption tracking
+- Performance comparisons between devices
+
+**API Examples:**
+```
+GET /api/analytics/energy-usage/?start=2024-01-01&end=2024-01-31
+GET /api/analytics/device/123/trends/?period=7days
+GET /api/analytics/building-performance/
+```
+
+**Value:** Data-driven insights for energy optimization and cost savings
+
+##### 1.3 Device Configuration Management API
+**What it does:**
+- Remote device parameter configuration
+- Bulk device settings updates
+- Configuration backup/restore
+- Scheduled configuration changes
+
+**API Examples:**
+```
+POST /api/devices/123/configure/    # Update device settings
+GET /api/devices/123/config/        # Get current configuration
+POST /api/devices/bulk-configure/   # Update multiple devices
+```
+
+**Value:** Remote building management without physical site visits
+
+##### 1.4 Building Energy Insights API
+**What it does:**
+- Building-wide energy consumption analysis
+- Cost calculations and savings projections
+- Efficiency recommendations
+- Comparative analysis across time periods
+
+**API Examples:**
+```
+GET /api/insights/energy-efficiency/
+GET /api/insights/cost-analysis/?month=2024-01
+GET /api/insights/recommendations/
+```
+
+**Value:** Direct ROI demonstration vs $30K+ licensing costs
+
+##### 5-Week Implementation Timeline:
+- **Week 1:** Real-time device status API
+- **Week 2:** Historical data analytics endpoints
+- **Week 3:** Device configuration management API
+- **Week 4:** Building energy insights API
+- **Week 5:** Polish, testing, documentation
+
+#### Option 2: User Interface/Dashboard
+**Focus**: Visual interface for building managers
+- Real-time monitoring dashboard
+- Device management interface
+- Data visualization (charts, graphs)
+- Alert/notification system
+
+#### Option 3: Production-Ready Features
+**Focus**: Enterprise deployment capabilities
+- Authentication/authorization
+- API rate limiting & caching
+- Comprehensive error handling
+- Deployment documentation
+
+#### Option 4: ML/Analytics Features
+**Focus**: Intelligent building management
+- Anomaly detection for sensor readings
+- Predictive maintenance alerts
+- Energy usage pattern analysis
+- Automated reporting
+
+#### Option 5: Integration Features
+**Focus**: External system connectivity
+- Third-party building management system integration
+- Cloud platform connectors (AWS IoT, Azure IoT)
+- Data export/import capabilities
+- Webhook/notification systems
+
+### Decision Rationale for Option 1
+- **Aligns with internship focus**: REST API development
+- **Showcases technical skills**: Complex data processing and API design
+- **Demonstrates business value**: Clear ROI against expensive licensing
+- **Builds on existing foundation**: Leverages current BACnet infrastructure
+- **Achievable in timeline**: Realistic scope for 5 weeks
+
+### Implementation Difficulty Ranking (Easiest → Hardest)
+
+#### 🟢 1. Real-time Device Status API (EASIEST)
+**Why easiest:**
+- Uses existing database models (devices, points, readings)
+- Simple data queries and JSON responses
+- No complex calculations or aggregations
+- Basic CRUD operations
+
+**Code Example:**
+```python
+# Simple query for device status
+device = Device.objects.get(id=123)
+latest_readings = device.points.latest_readings()
+return {"status": "online", "readings": latest_readings}
+```
+
+#### 🟡 2. Historical Data Analytics Endpoints (MEDIUM-EASY)
+**Why medium-easy:**
+- Uses existing data but requires aggregation
+- Time-series queries (Django ORM can handle)
+- Basic statistical calculations (min, max, avg)
+- Some date/time filtering logic
+
+**Code Example:**
+```python
+# Aggregate historical data
+readings = Reading.objects.filter(
+    timestamp__range=[start_date, end_date]
+).aggregate(avg_value=Avg('value'), max_value=Max('value'))
+```
+
+#### 🟠 3. Building Energy Insights API (MEDIUM-HARD)
+**Why medium-hard:**
+- Requires business logic for cost calculations
+- Cross-device data aggregation
+- More complex statistical analysis
+- Efficiency algorithms and recommendations
+
+**Code Example:**
+```python
+# Complex building-wide analysis
+total_consumption = sum_energy_across_devices()
+efficiency_score = calculate_efficiency_rating()
+savings_projection = compare_with_baseline()
+```
+
+#### 🔴 4. Device Configuration Management API (HARDEST)
+**Why hardest:**
+- **Requires actual BACnet write operations** (new functionality)
+- Network communication with real devices
+- Error handling for device communication failures
+- Validation of configuration parameters
+- Potential device compatibility issues
+
+**Code Example:**
+```python
+# Complex BACnet write operations
+with BAC0Service() as bacnet:
+    result = bacnet.write_property(
+        device_ip, 'analogOutput', point_id, new_value
+    )
+    if result.error:
+        handle_device_error()
+```
+
+### Recommended Implementation Order (Progressive Difficulty)
+
+#### Week 1: Real-time Device Status API 🟢
+- **Goal**: Quick win to build momentum
+- **Value**: Foundation for other APIs, immediate visible results
+- **Focus**: Simple queries, JSON responses, basic REST endpoints
+
+#### Week 2: Historical Data Analytics 🟡
+- **Goal**: Build on Week 1's foundation
+- **Value**: Introduces time-series concepts, good learning progression
+- **Focus**: Data aggregation, statistical calculations, time filtering
+
+#### Week 3: Building Energy Insights 🟠
+- **Goal**: Tackle more complex business logic
+- **Value**: Impressive business value, challenging but achievable
+- **Focus**: Cross-device analysis, cost calculations, efficiency algorithms
+
+#### Week 4: Device Configuration Management 🔴
+- **Goal**: Master most technically challenging feature
+- **Value**: Complete API suite, advanced BACnet functionality
+- **Focus**: BACnet write operations, device communication, error handling
+
+#### Week 5: Polish & Documentation
+- **Goal**: Production-ready deliverable
+- **Value**: Professional finish for internship presentation
+- **Focus**: Testing, error handling, API documentation, deployment guides
+
+### Benefits of This Progressive Approach
+- **Confidence building**: Start easy, build complexity gradually
+- **Risk mitigation**: If later weeks face challenges, earlier features are complete
+- **Learning curve**: Each week builds skills needed for the next
+- **Momentum**: Early wins motivate continued progress
+- **Fallback options**: Can present partial completion if needed
