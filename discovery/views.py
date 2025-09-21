@@ -424,15 +424,15 @@ def device_trends_api(request, device_id):
                         for r in readings.order_by("read_time")
                     ],
                     "statistics": {
-                        "min": round(stats["min_value"], 2)
-                        if stats["min_value"]
-                        else None,
-                        "max": round(stats["max_value"], 2)
-                        if stats["max_value"]
-                        else None,
-                        "avg": round(stats["avg_value"], 2)
-                        if stats["avg_value"]
-                        else None,
+                        "min": (
+                            round(stats["min_value"], 2) if stats["min_value"] else None
+                        ),
+                        "max": (
+                            round(stats["max_value"], 2) if stats["max_value"] else None
+                        ),
+                        "avg": (
+                            round(stats["avg_value"], 2) if stats["avg_value"] else None
+                        ),
                         "count": stats["count"],
                     },
                 }
