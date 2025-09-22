@@ -132,3 +132,9 @@ class DeviceNotFoundAPIError(APIError):
     status_code = 404
     error_code = "DEVICE_NOT_FOUND"
     message = "Device not found"
+
+
+class RateLimitExceededError(APIError):
+    status_code = 429
+    error_code = "RATE_LIMIT_EXCEEDED"
+    message = "Too many requests. Please try again later."

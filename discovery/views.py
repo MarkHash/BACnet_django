@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from .constants import BACnetConstants
-from .decorators import api_error_handler
+from .decorators import api_error_handler, api_rate_limit
 from .exceptions import (
     BACnetError,
     ConfigurationError,
@@ -292,6 +292,7 @@ def clear_devices(request):
     return JsonResponse({"success": False, "message": "Invalid request"})
 
 
+@api_rate_limit(rate="200/h", method=["GET", "POST"])
 @api_error_handler
 @csrf_exempt
 def devices_status_api(request):
@@ -381,6 +382,7 @@ def devices_status_api(request):
         raise DeviceNotFoundAPIError()
 
 
+@api_rate_limit(rate="100/h", method=["GET", "POST"])
 @api_error_handler
 def device_trends_api(request, device_id):
     """
@@ -454,3 +456,10 @@ def device_trends_api(request, device_id):
 
     except Http404:
         raise DeviceNotFoundAPIError()
+
+
+def api_docs(request):
+    """
+    API Documentation page
+    """
+    return render(request, "discovery/api_docs.html")

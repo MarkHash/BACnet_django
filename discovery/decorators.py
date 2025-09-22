@@ -4,8 +4,9 @@ import uuid
 
 from django.http import JsonResponse
 from django.utils import timezone
+from django_ratelimit.decorators import ratelimit
 
-from .exceptions import APIError
+from .exceptions import APIError, RateLimitExceededError
 
 
 def api_error_handler(view_func):
@@ -25,6 +26,10 @@ def api_error_handler(view_func):
                     "method": request.method,
                 },
             )
+
+            if getattr(request, "limited", False):
+                logger.warning(f"[{request_id}] Rate limit exceeded")
+                return RateLimitExceededError().to_response()
 
             response = view_func(request, *args, **kwargs)
 
@@ -50,3 +55,10 @@ def api_error_handler(view_func):
             )
 
     return wrapper
+
+
+def api_rate_limit(group=None, key=None, rate="60/h", method="POST"):
+    """Standard API rate limiting decorator"""
+    return ratelimit(
+        group=group or "api", key=key or "ip", rate=rate, method=method, block=False
+    )

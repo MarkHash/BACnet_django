@@ -52,4 +52,5 @@ urlpatterns = [
         views.device_trends_api,
         name="device_trends_api",
     ),
+    path("api/docs/", views.api_docs, name="api_docs"),
 ]
