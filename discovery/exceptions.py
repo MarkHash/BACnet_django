@@ -1,3 +1,7 @@
+from django.http import JsonResponse
+from django.utils import timezone
+
+
 class BACnetError(Exception):
     """Base exception for all BACnet-related errors."""
 
@@ -93,3 +97,38 @@ class BACnetBatchReadError(BACnetServiceError):
         super().__init__(
             f"Batch read failed for device {device_id} ({point_count} points)"
         )
+
+
+class APIError(Exception):
+    status_code = 500
+    error_code = "INTERNAL_ERROR"
+    message = "An internal error occurred"
+
+    def to_response(self):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": {
+                    "code": self.error_code,
+                    "message": self.message,
+                    "type": self.__class__.__name__,
+                },
+                "timestamp": timezone.now().isoformat(),
+            },
+            status=self.status_code,
+        )
+
+
+class ValidationError(APIError):
+    status_code = 400
+    error_code = "VALIDATION_ERROR"
+
+    def __init__(self, message="Validation error"):
+        self.message = message
+        super().__init__()
+
+
+class DeviceNotFoundAPIError(APIError):
+    status_code = 404
+    error_code = "DEVICE_NOT_FOUND"
+    message = "Device not found"

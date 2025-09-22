@@ -3,16 +3,21 @@ from datetime import timedelta
 
 from django.db.models import Avg, Count, FloatField, Max, Min
 from django.db.models.functions import Cast
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from .constants import BACnetConstants
-from .exceptions import BACnetError, ConfigurationError, DeviceNotFoundError
+from .decorators import api_error_handler
+from .exceptions import (
+    BACnetError,
+    ConfigurationError,
+    DeviceNotFoundAPIError,
+    DeviceNotFoundError,
+    ValidationError,
+)
 from .models import BACnetDevice, BACnetPoint
-
-# from .bacnet_client import DjangoBACnetClient, clear_all_devices
 from .services import BACnetService
 
 
@@ -287,9 +292,11 @@ def clear_devices(request):
     return JsonResponse({"success": False, "message": "Invalid request"})
 
 
+@api_error_handler
+@csrf_exempt
 def devices_status_api(request):
     """
-    GET /api/devices/status/ - ALl devices overview
+    GET /api/devices/status/ - All devices overview
     """
 
     try:
@@ -370,18 +377,11 @@ def devices_status_api(request):
                 "timestamp": timezone.now().isoformat(),
             }
         )
-    except Exception as e:
-        logger.error(f"Error in devices_status_api: {e}")
-        return JsonResponse(
-            {
-                "success": False,
-                "error": "Failed to retrieve device status",
-                "timestamp": timezone.now().isoformat(),
-            },
-            status=500,
-        )
+    except Http404:
+        raise DeviceNotFoundAPIError()
 
 
+@api_error_handler
 def device_trends_api(request, device_id):
     """
     GET /api/devices/{id}/analytics/trends/
@@ -393,6 +393,11 @@ def device_trends_api(request, device_id):
         device = get_object_or_404(BACnetDevice, device_id=device_id)
         all_points = device.points.all()
         period = request.GET.get("period", "24hours")
+        if period not in BACnetConstants.PERIOD_PARAMETERS:
+            raise ValidationError(
+                f"Invalid period '{period}'. Valid options: "
+                f"{list(BACnetConstants.PERIOD_PARAMETERS.keys())}"
+            )
         start_time = timezone.now() - timedelta(
             hours=BACnetConstants.PERIOD_PARAMETERS[period]
         )
@@ -447,13 +452,5 @@ def device_trends_api(request, device_id):
             }
         )
 
-    except Exception as e:
-        logger.error(f"Error in device_trends_api: {e}")
-        return JsonResponse(
-            {
-                "success": False,
-                "error": "Failed to retrieve device trends data",
-                "timestamp": timezone.now().isoformat(),
-            },
-            status=500,
-        )
+    except Http404:
+        raise DeviceNotFoundAPIError()
