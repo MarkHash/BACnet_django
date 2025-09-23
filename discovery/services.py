@@ -1,4 +1,5 @@
 import logging
+import os
 
 import BAC0
 from django.utils import timezone
@@ -65,7 +66,17 @@ class BACnetService:
         """
         try:
             self._log("🔌 Connecting to BACnet...")
-            self.bacnet = BAC0.connect()
+
+            # Use specific IP if provided in environment
+            bacnet_ip = os.getenv("BACNET_IP")
+            if bacnet_ip:
+                self._log(f"🎯 Using specified IP: {bacnet_ip}")
+                # Try BAC0.lite() instead of BAC0.connect() for better compatibility
+                self.bacnet = BAC0.lite(ip=bacnet_ip)
+            else:
+                self._log("🔍 Auto-detecting network interface")
+                self.bacnet = BAC0.connect()
+
             self._log("✅ Connected successfully")
 
             return True

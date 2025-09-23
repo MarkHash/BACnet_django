@@ -31,6 +31,8 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
       - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
     depends_on:
       db:
@@ -75,15 +77,17 @@ services:
   bacnet-worker:
     build: .
     command: celery -A bacnet_project worker --loglevel=info --queues=bacnet
-    network_mode: host
+    ports:
+      - "47808:47808/udp"
     volumes:
       - .:/app
     environment:
       - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
-      - DATABASE_URL=${DATABASE_URL_HOST}
-      - REDIS_URL=${REDIS_URL_HOST}
-      - CELERY_BROKER_URL=${REDIS_URL_HOST}
-      - CELERY_RESULT_BACKEND=${REDIS_URL_HOST}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - CELERY_BROKER_URL=${REDIS_URL}
+      - CELERY_RESULT_BACKEND=${REDIS_URL}
+      # Remove BACNET_IP to let it auto-detect
     depends_on:
       - db
       - redis

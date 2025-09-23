@@ -139,11 +139,23 @@
 - Connection management with context managers
 - Error recovery with fallback to individual reads
 
-### Docker Cross-Platform Setup (macOS ✅)
-- Separate services architecture (bridge + host networking)
-- Redis and Database connection fixes
-- Task queue routing for BACnet vs non-BACnet tasks
-- Environment variable strategy for different network modes
+### Docker Cross-Platform Setup ✅
+- ✅ macOS: Separate services architecture (bridge + host networking)
+- ✅ Windows: Port mapping solution for BACnet UDP communication
+- ✅ Redis and Database connection fixes across platforms
+- ✅ Task queue routing for BACnet vs non-BACnet tasks
+- ✅ Environment variable strategy for different network modes
+
+#### Windows Docker Networking Solution
+**Problem**: `network_mode: host` doesn't provide true Windows host networking in Docker Desktop
+**Solution**: Removed host networking, added UDP port mapping for BACnet worker:
+```yaml
+bacnet-worker:
+  ports:
+    - "47808:47808/udp"  # BACnet UDP port mapping
+```
+**Result**: Container bridge networking (172.18.0.x) with proper port forwarding
+**Testing**: Successfully tested BACnet discovery task with new network configuration
 
 ---
 
@@ -153,7 +165,8 @@
 ✅ macOS Docker setup complete and working
 ✅ Separate services architecture implemented (bridge + host networking)
 ✅ Redis and Database connections fixed
-⏳ Windows WSL2 testing pending
+✅ Windows Docker networking fix implemented
+✅ Port mapping solution for BACnet UDP communication
 
 ### Windows WSL2 Setup Steps
 
