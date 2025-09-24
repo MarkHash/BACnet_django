@@ -37,7 +37,37 @@ A Django web application for discovering, monitoring, and reading BACnet devices
 - BAC0 library (23.07.03+)
 - Bootstrap 5.1.3 (loaded via CDN)
 
+## Platform Support
+
+This application now supports **cross-platform deployment** with automatic OS detection:
+
+- **Linux/Mac**: Full Docker containerization with host networking
+- **Windows**: Hybrid architecture with native BACnet networking
+
+### Windows Support Features
+- ✅ **Automatic platform detection** - no manual configuration needed
+- ✅ **Native Windows networking** - accesses real Windows network (192.168.1.x)
+- ✅ **Hybrid architecture** - Database/Redis in containers, BACnet discovery native
+- ✅ **Zero changes to Linux/Mac workflow** - existing deployments unchanged
+
 ## Installation
+
+### Linux/Mac Installation (Docker)
+
+### 1. Clone the repository
+```bash
+git clone <repository-url>
+cd BACnet_django
+```
+
+### 2. Start with Docker Compose
+```bash
+docker-compose up -d
+```
+
+That's it! The application will be available at http://localhost:8000
+
+### Windows Installation (Hybrid)
 
 ### 1. Clone the repository
 ```bash
@@ -48,7 +78,7 @@ cd BACnet_django
 ### 2. Create virtual environment
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+venv\Scripts\activate
 ```
 
 ### 3. Install dependencies
@@ -121,14 +151,58 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-### 7. Start development server
+### 4. Start infrastructure services (Windows-specific Docker Compose)
+```bash
+docker-compose -f docker-compose.windows.yml up -d
+```
+
+### 5. Start Django development server
 ```bash
 python manage.py runserver
 ```
 
-### 8. Access the application
+The application automatically detects Windows and enables native BACnet networking.
+
+### 6. Access the application
 - Web Interface: http://localhost:8000/
 - Admin Interface: http://localhost:8000/admin/
+
+## How the Hybrid Architecture Works (Windows)
+
+### What Runs Where:
+```
+┌─────────────────────────────────────────┐
+│               Windows Host              │
+│                                         │
+│  ┌─────────────────────────────────────┐│
+│  │     Django (python manage.py)      ││  ← Native Windows
+│  │  - Web interface                   ││  ← ALL BACnet operations
+│  │  - Device discovery                ││  ← Direct network access
+│  │  - Point reading                   ││  ← Real Windows network
+│  │  - All BACnet functions            ││  ← (192.168.1.x)
+│  └─────────────────────────────────────┘│
+│                                         │
+│  ┌─────────────────────────────────────┐│
+│  │          Docker Containers          ││
+│  │  ┌─────────────────────────────────┐││
+│  │  │ PostgreSQL Database (port 5432) │││  ← Containerized
+│  │  └─────────────────────────────────┘││
+│  │  ┌─────────────────────────────────┐││
+│  │  │ Redis Cache (port 6379)         │││  ← Containerized
+│  │  └─────────────────────────────────┘││
+│  │  ┌─────────────────────────────────┐││
+│  │  │ Celery Workers                  │││  ← Containerized
+│  │  └─────────────────────────────────┘││
+│  └─────────────────────────────────────┘│
+└─────────────────────────────────────────┘
+```
+
+### Why This Works:
+- **Django connects to `localhost:5432`** → Docker forwards to PostgreSQL container
+- **Django connects to `localhost:6379`** → Docker forwards to Redis container
+- **All BACnet operations run in Django** → Direct Windows network access (192.168.1.x)
+- **Web interface calls BACnetService directly** → No additional workers needed
+- **Best of both worlds**: Reliable containerized services + native Windows networking
 
 ## Configuration
 
@@ -281,12 +355,40 @@ The application provides REST API endpoints:
 
 ## Troubleshooting
 
-### Common Issues
+### Platform-Specific Issues
+
+#### Windows-Specific Issues
+
+1. **"Windows detected but no BACnet devices found"**
+   - Verify your Windows machine can reach BACnet devices:
+     ```bash
+     ping 192.168.1.5  # Replace with your BACnet device IP
+     ```
+   - Check Windows firewall settings for UDP port 47808
+   - Ensure you're on the same subnet as BACnet devices
+
+2. **"Double BACnet connection error"**
+   - Fixed in current version with connection reuse
+   - If you see this error, restart Django server
+
+3. **Docker port conflicts**
+   - Make sure you're using `docker-compose.windows.yml`
+   - Don't run both `docker-compose.yml` and `docker-compose.windows.yml` simultaneously
+
+#### Linux/Mac-Specific Issues
+
+1. **Docker BACnet worker not finding devices**
+   - Check host networking is working: `docker run --rm --net=host busybox ip addr`
+   - Verify no firewall blocking UDP 47808
+
+### Common Issues (All Platforms)
 
 1. **No devices discovered**
    - Check network connectivity and subnet
    - Verify firewall settings for UDP port 47808
    - Ensure BACnet devices are accessible
+   - **Windows**: Make sure Django is running natively (not in Docker)
+   - **Linux/Mac**: Make sure Docker has host networking access
 
 2. **PostgreSQL connection errors**
    - Verify your `.env` file exists and has correct credentials
@@ -295,7 +397,8 @@ The application provides REST API endpoints:
      # Use your actual credentials from .env file
      psql -h localhost -U your_db_user -d bacnet_django
      ```
-   - Check PostgreSQL service is running: `sudo systemctl status postgresql`
+   - **Docker users**: Ensure containers are running: `docker-compose ps`
+   - Check PostgreSQL service is running: `sudo systemctl status postgresql` (Linux)
    - Ensure database and user exist:
      ```sql
      # Connect as postgres user
@@ -308,12 +411,22 @@ The application provides REST API endpoints:
      python -c "from dotenv import load_dotenv; import os; load_dotenv(); print('DB_USER:', os.getenv('DB_USER'))"
      ```
 
-3. **Point reading failures**
+3. **Platform detection issues**
+   - Check the startup message:
+     - Windows: "🪟 Windows detected: BACnet worker will run natively"
+     - Linux/Mac: "🐧 Linux/Mac detected: Using Docker BACnet worker"
+   - If incorrect, check `platform.system()` output:
+     ```python
+     import platform
+     print(platform.system())  # Should be 'Windows', 'Linux', or 'Darwin'
+     ```
+
+4. **Point reading failures**
    - Some devices may have security restrictions
    - Check device documentation for supported properties
    - Verify device is online and responsive
 
-4. **Performance issues**
+5. **Performance issues**
    - Monitor batch read success in logs
    - Check network latency to devices
    - Consider adjusting MAX_BATCH_SIZE
@@ -498,9 +611,40 @@ For issues and questions:
 - Check logs for BACnet communication issues
 - Review troubleshooting section for common problems
 
+## Files Added for Windows Support
+
+For reference, these are the minimal files added to enable Windows support:
+
+### New Files
+- `docker-compose.windows.yml` - Windows-specific Docker configuration (excludes web service)
+
+### Modified Files
+- `bacnet_project/settings.py` - Added OS auto-detection (5 lines at end)
+- `discovery/services.py` - Fixed BACnet connection reuse in `__enter__` method
+
+### How It Works
+- **Web interface already calls BACnetService directly** - no additional workers needed
+- **Django runs natively on Windows** - gets real network access (192.168.1.x)
+- **Database/Redis run in containers** - reliable infrastructure services
+- **Automatic platform detection** - no user configuration required
+
+### Architecture Benefits
+- **Zero risk**: Linux/Mac behavior unchanged
+- **Minimal changes**: ~10 lines of code modifications
+- **Simple**: No trigger files or background workers needed
+- **Direct**: Web interface → BACnetService → Windows network
+- **Maintainable**: Shared business logic across platforms
+
 ## Changelog
 
-### Version 2.0 (Current)
+### Version 2.1 (Current) - Windows Support
+- Added cross-platform support with automatic OS detection
+- Implemented hybrid architecture for Windows (native BACnet + containerized services)
+- Fixed BACnet connection reuse issues
+- Zero changes to existing Linux/Mac functionality
+- Created Windows-specific Docker Compose configuration
+
+### Version 2.0
 - Migrated from BACpypes to BAC0
 - Implemented PostgreSQL database
 - Added optimized batch reading

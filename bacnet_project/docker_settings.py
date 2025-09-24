@@ -4,6 +4,17 @@ import dj_database_url
 
 from .settings import *  # noqa: F401,F403
 
+# Override Windows detection for containers
+# Check HOST_OS environment variable instead of platform.system()
+IS_WINDOWS_HOST = os.environ.get("HOST_OS") == "Windows"
+
+if IS_WINDOWS_HOST:
+    print("🪟 Windows host detected in container: BACnet tasks will use subprocess")
+else:
+    print(
+        "🐧 Linux/Mac host detected in container: BACnet tasks will use direct service"
+    )
+
 SECRET_KEY = os.environ.get("SECRET_KEY", "fallback-secret-key")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL:

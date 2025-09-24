@@ -1,7 +1,10 @@
 import logging
+import subprocess
+import sys
 from datetime import timedelta
 
 from celery import shared_task
+from django.conf import settings
 from django.utils import timezone
 
 from .models import BACnetPoint, BACnetReading, SensorReadingStats
@@ -128,8 +131,22 @@ def calculate_point_stats_manual(point_id, aggregation_type="hourly", hours_back
 @shared_task(bind=True, queue="bacnet")
 def discover_devices_task(self, mock_mode=False):
     try:
-        service = BACnetService()
-        return service.discover_devices(mock_mode=mock_mode)
+        if getattr(settings, "IS_WINDOWS_HOST", False):
+            cmd = [sys.executable, "manage.py", "discover_devices"]
+            if mock_mode:
+                cmd.append("--mock")
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=60, cwd="/host_app"
+            )
+            if result.returncode == 0:
+                return {"success": True, "output": result.stdout}
+            else:
+                return {"success": False, "output": result.stdout}
+
+        else:
+            service = BACnetService()
+            devices = service.discover_devices(mock_mode=mock_mode)
+            return {"success": True, "devices_found": len(devices) if devices else 0}
     except Exception as e:
         logger.error(f"Device discovery task failed: {e}")
         return {"error": str(e)}
@@ -137,5 +154,23 @@ def discover_devices_task(self, mock_mode=False):
 
 @shared_task(bind=True, queue="bacnet")
 def collect_readings_task(self):
-    service = BACnetService()
-    return service.collect_all_readings()
+    try:
+        if getattr(settings, "IS_WINDOWS_HOST", False):
+            cmd = [sys.executable, "manage.py", "collect_readings"]
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=120, cwd="/host_app"
+            )
+            if result.returncode == 0:
+                return {"success": True, "output": result.stdout}
+            else:
+                return {"success": False, "output": result.stdout}
+
+        else:
+            service = BACnetService()
+            results = service.collect_all_readings()
+            return {
+                "success": True,
+                "readings_collected": results.get("readings_collected", 0),
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e)}

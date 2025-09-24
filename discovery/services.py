@@ -36,6 +36,10 @@ class BACnetService:
         self.callback = callback
 
     def __enter__(self):
+        if self.bacnet is not None:
+            self._log("🔄 Using existing BACnet connection")
+            return self
+
         if self._connect():
             return self
         raise BACnetConnectionError("Failed to connect to BACnet")
@@ -71,11 +75,23 @@ class BACnetService:
             bacnet_ip = os.getenv("BACNET_IP")
             if bacnet_ip:
                 self._log(f"🎯 Using specified IP: {bacnet_ip}")
-                # Try BAC0.lite() instead of BAC0.connect() for better compatibility
-                self.bacnet = BAC0.lite(ip=bacnet_ip)
+
+                # Parse IP and port from BACNET_IP (format: IP:PORT/MASK)
+                if ":" in bacnet_ip and "/" in bacnet_ip:
+                    # Extract IP, port, and mask from "192.168.1.5:47809/24"
+                    ip_part, mask_part = bacnet_ip.split("/")
+                    ip_address, port = ip_part.split(":")
+                    ip_with_mask = f"{ip_address}/{mask_part}"
+                    port = int(port)
+                    self._log(f"🔧 Parsed - IP: {ip_with_mask}, Port: {port}")
+
+                    self.bacnet = BAC0.lite(ip=ip_with_mask, port=port)
+                else:
+                    # Fallback to original format
+                    self.bacnet = BAC0.lite(ip=bacnet_ip)
             else:
                 self._log("🔍 Auto-detecting network interface")
-                self.bacnet = BAC0.connect()
+                self.bacnet = BAC0.lite()
 
             self._log("✅ Connected successfully")
 
@@ -88,7 +104,7 @@ class BACnetService:
 
     def _disconnect(self):
         """
-        Disconnect to BACnet.
+        Disconnect from BACnet with enhanced cleanup.
 
         Raises:
             Exception: BACnet connection errors
@@ -97,13 +113,39 @@ class BACnetService:
         try:
             self._log("🔌 Disconnecting...")
             if self.bacnet:
+                # Enhanced cleanup for port release
+                try:
+                    # Stop all tasks first
+                    if (
+                        hasattr(self.bacnet, "task_manager")
+                        and self.bacnet.task_manager
+                    ):
+                        self.bacnet.task_manager.stop()
+                except Exception as e:
+                    logger.debug(f"Task manager stop error (harmless): {e}")
+
+                # Disconnect BAC0
                 self.bacnet.disconnect()
+
+                # Force garbage collection to help release resources
+                import gc
+
+                gc.collect()
+
+                # Add small delay to ensure port is released
+                import time
+
+                time.sleep(0.1)
+
+            self.bacnet = None
 
         except (OSError, AttributeError) as e:
             logger.debug(f"Cleanup error during disconnect (harmless): {e}")
-
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.debug(f"Other cleanup error (harmless): {e}")
+        finally:
+            # Ensure bacnet is set to None regardless
+            self.bacnet = None
 
     def _log(self, message, level="info"):
         """

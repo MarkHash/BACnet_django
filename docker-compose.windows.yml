@@ -17,28 +17,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Django Web Application
-  web:
-    build: .
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - .:/app
-      - static_volume:/app/staticfiles
-    ports:
-      - "8000:8000"
-    environment:
-      - DEBUG=${DEBUG}
-      - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/1
-      - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
   # Redis for caching and background tasks
   redis:
     image: redis:7-alpine
@@ -58,7 +36,7 @@ services:
       - redis
     environment:
       - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
-      - HOST_OS=Linux
+      - HOST_OS=Windows
     env_file:
       - .env
 
@@ -72,24 +50,25 @@ services:
       - redis
     environment:
       - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
-      - HOST_OS=Linux
+      - HOST_OS=Windows
     env_file:
       - .env
 
   bacnet-worker:
     build: .
     command: celery -A bacnet_project worker --loglevel=info --queues=bacnet
-    ports:
-      - "47808:47808/udp"
     volumes:
-      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${PWD}:/host_app
+      - ${PWD}:/app
+    working_dir: /app
     environment:
       - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - CELERY_BROKER_URL=${REDIS_URL}
       - CELERY_RESULT_BACKEND=${REDIS_URL}
-      - HOST_OS=Linux
+      - HOST_OS=Windows
       # Remove BACNET_IP to let it auto-detect
     depends_on:
       - db

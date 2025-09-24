@@ -1,0 +1,1 @@
+Discovery failed at 2025-09-24 10:15:19.115077: Device discovery failed: Network connection failed: IP Address provided (192.168.1.5) already used by BAC0. Check if another software is using port 47808 on this network interface. If so, you can define multiple IP per interface. Or specify another IP using BAC0.lite(ip='IP/mask')

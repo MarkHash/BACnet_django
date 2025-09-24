@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import platform  # Windows Support - Auto-detection
 import sys
 from pathlib import Path
 
@@ -195,3 +196,14 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=0, minute=5),  # Run daily at 00:05
     },
 }
+
+IS_WINDOWS_HOST = platform.system() == "Windows" and not os.path.exists("/.dockerenv")
+
+if IS_WINDOWS_HOST:
+    print("🪟 Windows detected: BACnet worker will run natively")
+    print(
+        "📝 Run: python manage.py runserver "
+        "(after docker-compose -f docker-compose.windows.yml up -d)"
+    )
+else:
+    print("🐧 Linux/Mac detected: Using Docker BACnet worker")
