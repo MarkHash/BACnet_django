@@ -54,27 +54,28 @@ services:
     env_file:
       - .env
 
-  bacnet-worker:
-    build: .
-    command: celery -A bacnet_project worker --loglevel=info --queues=bacnet
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${PWD}:/host_app
-      - ${PWD}:/app
-    working_dir: /app
-    environment:
-      - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - CELERY_BROKER_URL=${REDIS_URL}
-      - CELERY_RESULT_BACKEND=${REDIS_URL}
-      - HOST_OS=Windows
-      # Remove BACNET_IP to let it auto-detect
-    depends_on:
-      - db
-      - redis
-    env_file:
-      - .env
+  # BACnet worker - Commented out for Windows (handled by windows_integrated_server.py)
+  # bacnet-worker:
+  #   build: .
+  #   command: celery -A bacnet_project worker --loglevel=info --queues=bacnet
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ${PWD}:/host_app
+  #     - ${PWD}:/app
+  #   working_dir: /app
+  #   environment:
+  #     - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
+  #     - DATABASE_URL=${DATABASE_URL}
+  #     - REDIS_URL=${REDIS_URL}
+  #     - CELERY_BROKER_URL=${REDIS_URL}
+  #     - CELERY_RESULT_BACKEND=${REDIS_URL}
+  #     - HOST_OS=Windows
+  #     # Remove BACNET_IP to let it auto-detect
+  #   depends_on:
+  #     - db
+  #     - redis
+  #   env_file:
+  #     - .env
 
 volumes:
   postgres_data:

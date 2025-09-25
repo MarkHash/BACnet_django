@@ -1,3 +1,25 @@
+"""
+BACnet Service Layer
+
+This module provides the main service interface for BACnet device discovery and data
+collection. It uses the BAC0 library for BACnet protocol communication and integrates
+with Django models for data persistence.
+
+Key Features:
+- Device discovery via BACnet WhoIs broadcasts
+- Automated point discovery and metadata collection
+- Batch reading of device values with error handling
+- Device status tracking and historical logging
+- Statistical processing for anomaly detection
+
+Classes:
+- BACnetService: Main service class for all BACnet operations
+- DeviceStatusService: Manages device connectivity status and history
+
+The service layer abstracts BACnet complexity and provides a clean interface for
+background tasks, web views, and the Windows integrated server.
+"""
+
 import logging
 import os
 

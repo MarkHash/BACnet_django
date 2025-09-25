@@ -1,3 +1,27 @@
+"""
+BACnet Web API Views
+
+This module provides REST API endpoints for BACnet device management and monitoring.
+The views handle web requests for device discovery, point reading, and system status,
+providing both JSON API responses and HTML dashboard interfaces.
+
+API Endpoints:
+- Device management: List, discover, and control BACnet devices
+- Point operations: Read values, manage points, and trigger updates
+- System status: Health checks, statistics, and operational dashboards
+- Manual operations: Force discovery, clear devices, and administrative actions
+
+Features:
+- RESTful JSON responses with comprehensive error handling
+- HTML dashboard views for system monitoring
+- Real-time device status and connectivity information
+- Integration with background task system for async operations
+- Cross-platform support (Docker containers and Windows native)
+
+The views provide the web interface layer for the BACnet monitoring system,
+abstracting service layer complexity into user-friendly endpoints.
+"""
+
 import logging
 
 from django.db.models import Count
@@ -9,8 +33,6 @@ from django.views.decorators.csrf import csrf_exempt
 from .constants import BACnetConstants
 from .exceptions import BACnetError, ConfigurationError, DeviceNotFoundError
 from .models import BACnetDevice, BACnetPoint
-
-# from .bacnet_client import DjangoBACnetClient, clear_all_devices
 from .services import BACnetService
 
 

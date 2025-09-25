@@ -45,10 +45,22 @@ This application now supports **cross-platform deployment** with automatic OS de
 - **Windows**: Hybrid architecture with native BACnet networking
 
 ### Windows Support Features
-- ✅ **Automatic platform detection** - no manual configuration needed
-- ✅ **Native Windows networking** - accesses real Windows network (192.168.1.x)
-- ✅ **Hybrid architecture** - Database/Redis in containers, BACnet discovery native
+- ✅ **Integrated Server Solution** - Single command deployment with `windows_integrated_server.py`
+- ✅ **Native Windows networking** - Direct access to Windows network stack (192.168.1.x)
+- ✅ **Automatic BACnet Operations** - Periodic discovery (30min) and data collection (5min)
+- ✅ **Threading Architecture** - Web server + background BACnet worker in one process
+- ✅ **Docker Infrastructure** - PostgreSQL and Redis in containers for reliability
 - ✅ **Zero changes to Linux/Mac workflow** - existing deployments unchanged
+
+### Quick Platform Comparison
+| Feature | Linux/Mac | Windows |
+|---------|-----------|---------|
+| **Deployment** | `docker-compose up` | `docker-compose -f docker-compose.windows.yml up -d` + `python windows_integrated_server.py` |
+| **BACnet Operations** | Docker container with host networking | Native Windows process |
+| **Web Server** | Docker container | Native Windows process |
+| **Database** | Docker container | Docker container |
+| **Setup Complexity** | Single command | Two commands |
+| **Network Access** | Host networking mode | Full Windows network stack |
 
 ## Installation
 
@@ -67,7 +79,7 @@ docker-compose up -d
 
 That's it! The application will be available at http://localhost:8000
 
-### Windows Installation (Hybrid)
+### Windows Installation (Integrated Server)
 
 ### 1. Clone the repository
 ```bash
@@ -84,125 +96,71 @@ venv\Scripts\activate
 ### 3. Install dependencies
 ```bash
 pip install -r requirements.txt
-# Or manually:
-pip install django psycopg2-binary BAC0 celery redis python-dotenv
 ```
 
-### 4. PostgreSQL Setup & Environment Variables
-
-**Create database and user (choose your own credentials):**
-```sql
--- Connect to PostgreSQL as superuser (psql -U postgres)
-CREATE DATABASE bacnet_django;
-CREATE USER your_chosen_username WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE bacnet_django TO your_chosen_username;
-```
-
-**Or using command line:**
-```bash
-# Create database
-createdb -U postgres bacnet_django
-
-# Create user with your chosen credentials
-psql -U postgres -c "CREATE USER your_chosen_username WITH PASSWORD 'your_secure_password';"
-psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE bacnet_django TO your_chosen_username;"
-```
-
-**Create `.env` file with your credentials:**
-```bash
-# .env (customize these values with your chosen credentials)
-DB_NAME=bacnet_django
-DB_USER=your_chosen_username
-DB_PASSWORD=your_secure_password
-DB_HOST=localhost
-DB_PORT=5432
-SECRET_KEY=your-secret-key-here
-DEBUG=True
-```
-
-**Database configuration (uses environment variables):**
-```python
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
-    }
-}
-```
-
-**Security benefits:**
-- ✅ No passwords in version control
-- ✅ Each developer can use their own credentials
-- ✅ Different credentials for dev/staging/production
-- ✅ Easy credential rotation
-
-### 5. Run database migrations
-```bash
-python manage.py makemigrations
-python manage.py migrate
-```
-
-### 6. Create superuser (optional)
-```bash
-python manage.py createsuperuser
-```
-
-### 4. Start infrastructure services (Windows-specific Docker Compose)
+### 4. Start Docker infrastructure
 ```bash
 docker-compose -f docker-compose.windows.yml up -d
 ```
+This starts PostgreSQL, Redis, and Celery workers in Docker containers.
 
-### 5. Start Django development server
+### 5. Run the integrated server
 ```bash
-python manage.py runserver
+python windows_integrated_server.py
 ```
 
-The application automatically detects Windows and enables native BACnet networking.
+That's it! The integrated server combines:
+- ✅ **Django web server** (port 8000)
+- ✅ **Background BACnet worker** (native Windows networking)
+- ✅ **Automatic periodic tasks** (device discovery + data collection)
+- ✅ **Full database connectivity** (connects to Docker PostgreSQL)
 
 ### 6. Access the application
 - Web Interface: http://localhost:8000/
 - Admin Interface: http://localhost:8000/admin/
 
-## How the Hybrid Architecture Works (Windows)
+## How the Windows Integrated Server Works
 
-### What Runs Where:
+### Single Process Architecture:
 ```
 ┌─────────────────────────────────────────┐
 │               Windows Host              │
 │                                         │
 │  ┌─────────────────────────────────────┐│
-│  │     Django (python manage.py)      ││  ← Native Windows
-│  │  - Web interface                   ││  ← ALL BACnet operations
-│  │  - Device discovery                ││  ← Direct network access
-│  │  - Point reading                   ││  ← Real Windows network
-│  │  - All BACnet functions            ││  ← (192.168.1.x)
+│  │   windows_integrated_server.py     ││  ← Single Python Process
+│  │                                     ││
+│  │  [Main Thread]                      ││
+│  │  • Django Web Server (port 8000)   ││  ← Web Interface
+│  │  • HTTP Request Handling           ││  ← API Endpoints
+│  │                                     ││
+│  │  [Background Thread]                ││
+│  │  • BACnet Device Discovery (1800s) ││  ← Native Windows Network
+│  │  • Data Collection (300s)          ││  ← Direct UDP Access
+│  │  • Error Handling & Recovery       ││  ← (192.168.1.x network)
 │  └─────────────────────────────────────┘│
 │                                         │
 │  ┌─────────────────────────────────────┐│
 │  │          Docker Containers          ││
 │  │  ┌─────────────────────────────────┐││
-│  │  │ PostgreSQL Database (port 5432) │││  ← Containerized
+│  │  │ PostgreSQL Database (port 5432) │││  ← Data Persistence
 │  │  └─────────────────────────────────┘││
 │  │  ┌─────────────────────────────────┐││
-│  │  │ Redis Cache (port 6379)         │││  ← Containerized
+│  │  │ Redis Cache (port 6379)         │││  ← Task Queue
 │  │  └─────────────────────────────────┘││
 │  │  ┌─────────────────────────────────┐││
-│  │  │ Celery Workers                  │││  ← Containerized
+│  │  │ Celery Workers (non-BACnet)     │││  ← Background Tasks
 │  │  └─────────────────────────────────┘││
 │  └─────────────────────────────────────┘│
 └─────────────────────────────────────────┘
 ```
 
-### Why This Works:
-- **Django connects to `localhost:5432`** → Docker forwards to PostgreSQL container
-- **Django connects to `localhost:6379`** → Docker forwards to Redis container
-- **All BACnet operations run in Django** → Direct Windows network access (192.168.1.x)
-- **Web interface calls BACnetService directly** → No additional workers needed
-- **Best of both worlds**: Reliable containerized services + native Windows networking
+### Key Benefits:
+- **🚀 One Command**: `python windows_integrated_server.py` starts everything
+- **🌐 Native Networking**: Full Windows network stack access for BACnet UDP
+- **⚡ Real-time Operations**: Direct service calls, no queue delays
+- **🔄 Auto-retry Logic**: Built-in error handling and recovery
+- **📊 Live Monitoring**: Real-time status updates and logging
+- **🐳 Docker Infrastructure**: Reliable database and caching services
 
 ## Configuration
 

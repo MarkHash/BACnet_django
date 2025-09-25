@@ -1,3 +1,15 @@
+"""
+Celery configuration for BACnet Django project.
+
+This module configures Celery for background task processing including:
+- BACnet device discovery and data collection tasks
+- Periodic task scheduling via Celery Beat
+- Integration with Django settings and Redis broker
+
+The app auto-discovers tasks from all Django apps and uses docker_settings
+for containerized deployment with conditional Windows support.
+"""
+
 import os
 
 from celery import Celery

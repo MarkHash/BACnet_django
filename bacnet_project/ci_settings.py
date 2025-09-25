@@ -1,3 +1,15 @@
+"""
+CI-specific Django settings for automated testing pipelines.
+
+This configuration is used by GitHub Actions, GitLab CI, or other CI/CD systems.
+It provides:
+- Test database configuration with PostgreSQL
+- Faster MD5 password hashing for test performance
+- Production-like settings (DEBUG=False) for realistic testing
+
+Usage: python manage.py test --settings=bacnet_project.ci_settings
+"""
+
 from .settings import *  # noqa: F401,F403
 
 DATABASES = {

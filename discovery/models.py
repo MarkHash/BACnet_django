@@ -1,3 +1,25 @@
+"""
+BACnet Django Models
+
+This module defines the database schema for BACnet device discovery and monitoring.
+The models support device management, point metadata, real-time data collection,
+and statistical analysis for building automation systems.
+
+Core Models:
+- BACnetDevice: Represents physical BACnet devices on the network
+- BACnetPoint: Individual data points (sensors/actuators) within devices
+- BACnetReading: Time-series data collected from points
+- DeviceStatusHistory: Historical device connectivity status
+- SensorReadingStats: Statistical analysis and anomaly detection for readings
+
+The schema is designed for:
+- Multi-device building automation systems
+- Historical data analysis and trending
+- Automatic anomaly detection and alerting
+- Device health monitoring and diagnostics
+- ML-ready statistical processing
+"""
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -5,7 +27,6 @@ from django.utils import timezone
 from .constants import BACnetConstants
 
 
-# Create your models here.
 class BACnetDevice(models.Model):
     device_id = models.IntegerField(
         unique=True, help_text="BACnet device instance number"

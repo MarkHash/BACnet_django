@@ -1,3 +1,25 @@
+"""
+BACnet Celery Background Tasks
+
+This module defines Celery tasks for automated BACnet operations that run in the
+background. These tasks handle periodic device discovery, data collection, and
+statistical processing for building automation monitoring.
+
+Tasks:
+- calculate_hourly_stats: Processes hourly statistical data for anomaly detection
+- discover_devices_task: Performs network-wide BACnet device discovery
+- collect_readings_task: Collects current values from all active device points
+
+Platform Support:
+- Linux/Mac: Tasks run in Docker containers via Celery Beat scheduling
+- Windows: Tasks are executed by windows_integrated_server.py for native network
+  access
+
+The tasks are designed to be idempotent and handle failures gracefully with
+comprehensive
+logging for monitoring and debugging.
+"""
+
 import logging
 import subprocess
 import sys

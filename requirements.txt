@@ -1,46 +1,65 @@
-asgiref==3.9.1
-bacpypes==0.19.0
-black==25.1.0
-cfgv==3.4.0
-click==8.2.1
-coverage==7.3.2
-distlib==0.4.0
+# BACnet Django Project - All Dependencies
+
+# Core Django & Web Framework
 Django==5.2.6
+asgiref==3.9.1
+sqlparse==0.5.3
+tzdata==2025.2
+
+# Database
+--only-binary=psycopg2-binary
+psycopg2-binary==2.9.10
+dj-database-url==2.1.0
+sqlalchemy
+
+# BACnet Protocol & Networking
+BAC0==23.7.3
+netifaces>=0.11.0
+pyasyncore==1.0.4
+
+# Background Tasks & Caching
+celery==5.3.4
+django-celery-results==2.5.1
+redis>=4.5.0
+
+# Configuration & Environment
+python-dotenv==1.0.0
+pytz
+PyYAML==6.0.2
+
+# Code Quality & Formatting
+black==25.1.0
+flake8==7.3.0
+pycodestyle==2.14.0
+pyflakes==3.4.0
+mccabe==0.7.0
+isort==6.0.1
+
+# Testing Framework
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-mock==3.12.0
+pytest-cov==4.1.0
+coverage==7.3.2
 factory-boy==3.3.0
 Faker==37.6.0
-filelock==3.19.1
-flake8==7.3.0
-identify==2.6.13
-iniconfig==2.1.0
-isort==6.0.1
-mccabe==0.7.0
+
+# Development Tools
+pre_commit==4.3.0
 mypy_extensions==1.1.0
-nodeenv==1.9.1
+
+# Build & Package Management
 packaging==25.0
 pathspec==0.12.1
 platformdirs==4.4.0
 pluggy==1.6.0
-pre_commit==4.3.0
-pyasyncore==1.0.4
-pycodestyle==2.14.0
-pyflakes==3.4.0
-pytest==7.4.3
-pytest-cov==4.1.0
-pytest-django==4.7.0
-pytest-mock==3.12.0
-PyYAML==6.0.2
-sqlparse==0.5.3
-tzdata==2025.2
+click==8.2.1
+iniconfig==2.1.0
+
+# Pre-commit Hook Dependencies
+cfgv==3.4.0
+distlib==0.4.0
+filelock==3.19.1
+identify==2.6.13
+nodeenv==1.9.1
 virtualenv==20.34.0
---only-binary=psycopg2-binary
-psycopg2-binary==2.9.10
-dj-database-url==2.1.0
-celery==5.3.4
-BAC0==23.7.3
-python-dotenv==1.0.0
-django-celery-results==2.5.1
-pytz
-sqlalchemy
-python-dotenv
-redis>=4.5.0
-netifaces>=0.11.0
