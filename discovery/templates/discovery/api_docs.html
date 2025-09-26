@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BACnet Django API Documentation</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 40px; background: #fafafa;
+        }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 8px; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        .endpoint { background: #f8f9fa; padding: 25px; margin: 25px 0; border-radius: 8px; border-left: 4px solid #3498db; }
+        .method { color: #fff; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-right: 10px; }
+        .get { background: #61affe; }
+        .post { background: #49cc90; }
+        .path { font-family: Monaco, monospace; font-size: 18px; margin: 10px 0; }
+        .description { color: #555; margin: 15px 0; }
+        .params { background: #fff; padding: 15px; border-radius: 4px; margin: 15px 0; }
+        .param { margin: 8px 0; }
+        .param-name { font-family: Monaco, monospace; background: #e9ecef; padding: 2px 6px; border-radius: 3px; }
+        pre { background: #2d3748; color: #e2e8f0; padding: 20px; border-radius: 6px; overflow-x: auto; }
+        .rate-limit { background: #fff3cd; padding: 10px; border-radius: 4px; border: 1px solid #ffeaa7; margin: 10px 0; }
+        .response-codes { background: #fff; padding: 15px; border-radius: 4px; margin: 15px 0; }
+        .code { font-family: Monaco, monospace; padding: 3px 6px; border-radius: 3px; }
+        .code-200 { background: #d4edda; color: #155724; }
+        .code-400 { background: #f8d7da; color: #721c24; }
+        .code-404 { background: #f8d7da; color: #721c24; }
+        .code-429 { background: #fff3cd; color: #856404; }
+        .code-500 { background: #f8d7da; color: #721c24; }
+        .try-it { background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 10px 0; }
+        .example-url { font-family: Monaco, monospace; background: #f1f3f4; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 BACnet Django API Documentation</h1>
+        <p>RESTful API for BACnet device management and analytics. This API provides comprehensive building automation data access with professional error handling, rate limiting, and real-time device monitoring.</p>
+
+        <!-- Device Status API -->
+        <div class="endpoint">
+            <h2>
+                <span class="method get">GET</span>
+                <span class="path">/api/devices/status/</span>
+            </h2>
+            <div class="description">
+                <strong>Get All Devices Status Overview</strong><br>
+                Returns comprehensive status information for all active BACnet devices including device health, point counts, and operational statistics.
+            </div>
+
+            <div class="rate-limit">
+                <strong>⚡ Rate Limit:</strong> 200 requests per hour per IP address
+            </div>
+
+            <div class="response-codes">
+                <h4>Response Codes</h4>
+                <div><span class="code code-200">200</span> Success - Returns device status data</div>
+                <div><span class="code code-429">429</span> Too Many Requests - Rate limit exceeded</div>
+                <div><span class="code code-500">500</span> Internal Server Error</div>
+            </div>
+
+            <h4>Example Response</h4>
+            <pre><code>{
+  "success": true,
+  "summary": {
+    "total_devices": 3,
+    "online_devices": 1,
+    "offline_devices": 0,
+    "stale_devices": 1,
+    "no_data_devices": 1
+  },
+  "devices": [
+    {
+      "device_id": 8001,
+      "address": "192.168.1.100",
+      "statistics": {
+        "total_points": 3,
+        "readable_points": 3,
+        "points_with_values": 3,
+        "device_status": "online",
+        "last_reading_time": "2025-09-22T07:15:27.304Z"
+      }
+    }
+  ],
+  "timestamp": "2025-09-22T07:15:27.304Z"
+}</code></pre>
+
+            <div class="example-url">
+                <strong>Try it:</strong> <code>curl http://localhost:8000/api/devices/status/</code>
+            </div>
+        </div>
+
+        <!-- Device Trends API -->
+        <div class="endpoint">
+            <h2>
+                <span class="method get">GET</span>
+                <span class="path">/api/devices/{device_id}/analytics/trends/</span>
+            </h2>
+            <div class="description">
+                <strong>Get Device Trends and Historical Data</strong><br>
+                Returns time-series data and statistical analysis for specific device points over a configurable time period.
+            </div>
+
+            <div class="rate-limit">
+                <strong>⚡ Rate Limit:</strong> 100 requests per hour per IP address
+            </div>
+
+            <div class="params">
+                <h4>Path Parameters</h4>
+                <div class="param">
+                    <span class="param-name">device_id</span> (integer, required) - BACnet device ID
+                </div>
+
+                <h4>Query Parameters</h4>
+                <div class="param">
+                    <span class="param-name">period</span> (string, optional) - Time period for data retrieval
+                    <br><strong>Options:</strong> 1hour, 6hours, 24hours, 7days, 30days
+                    <br><strong>Default:</strong> 24hours
+                </div>
+                <div class="param">
+                    <span class="param-name">points</span> (string, optional) - Comma-separated list of point identifiers to filter results
+                    <br><strong>Example:</strong> analogInput:100,analogInput:101
+                </div>
+            </div>
+
+            <div class="response-codes">
+                <h4>Response Codes</h4>
+                <div><span class="code code-200">200</span> Success - Returns time-series data and statistics</div>
+                <div><span class="code code-400">400</span> Bad Request - Invalid period parameter</div>
+                <div><span class="code code-404">404</span> Not Found - Device not found</div>
+                <div><span class="code code-429">429</span> Too Many Requests - Rate limit exceeded</div>
+            </div>
+
+            <h4>Example Response</h4>
+            <pre><code>{
+  "success": true,
+  "device_id": 8001,
+  "period": "24hours",
+  "points": [
+    {
+      "point_identifier": "analogInput:100",
+      "readings": [
+        {
+          "timestamp": "2025-09-22T06:00:00.000Z",
+          "value": 22.5
+        }
+      ],
+      "statistics": {
+        "min": 20.1,
+        "max": 25.3,
+        "avg": 22.7,
+        "count": 24
+      }
+    }
+  ]
+}</code></pre>
+
+            <div class="example-url">
+                <strong>Try it:</strong> <code>curl "http://localhost:8000/api/devices/8001/analytics/trends/?period=1hour"</code>
+            </div>
+        </div>
+
+        <!-- Error Handling -->
+        <div class="endpoint">
+            <h2>🛠️ Error Handling</h2>
+            <div class="description">
+                All API endpoints return consistent error responses with detailed information for debugging.
+            </div>
+
+            <h4>Error Response Format</h4>
+            <pre><code>{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid period 'invalid'. Valid options: ['1hour', '6hours', '24hours', '7days', '30days']",
+    "type": "ValidationError"
+  },
+  "timestamp": "2025-09-22T07:15:27.304Z"
+}</code></pre>
+
+            <h4>Common Error Codes</h4>
+            <div class="response-codes">
+                <div><span class="code code-400">VALIDATION_ERROR</span> - Invalid request parameters</div>
+                <div><span class="code code-404">DEVICE_NOT_FOUND</span> - Requested device does not exist</div>
+                <div><span class="code code-429">RATE_LIMIT_EXCEEDED</span> - Too many requests</div>
+                <div><span class="code code-500">INTERNAL_ERROR</span> - Server error with request ID for support</div>
+            </div>
+        </div>
+
+        <!-- Authentication -->
+        <div class="endpoint">
+            <h2>🔑 Authentication</h2>
+            <div class="description">
+                Currently, these APIs are open for development. In production, API key authentication will be required.
+            </div>
+        </div>
+
+        <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; color: #666; text-align: center;">
+            <p>BACnet Django API v1.0.0 | Built with Django & Professional Error Handling</p>
+        </footer>
+    </div>
+</body>
+</html>

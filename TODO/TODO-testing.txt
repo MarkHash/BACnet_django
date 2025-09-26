@@ -1,0 +1,357 @@
+# Phase 3: Testing & Quality Assurance - Implementation Plan
+
+## 🎯 Testing Strategy Overview
+
+### Objective
+Create comprehensive test coverage for the error handling and validation system to ensure production reliability and demonstrate professional testing practices.
+
+## 📋 Testing Dependencies
+
+### Core Testing Dependencies
+```bash
+pip install pytest-django pytest-cov factory-boy responses
+```
+
+### Dependencies Breakdown
+- **pytest-django**: Django integration for pytest framework
+- **pytest-cov**: Test coverage reporting
+- **factory-boy**: Test data generation and fixtures
+- **responses**: HTTP request mocking for external services
+
+## 🗂️ Test Structure Setup
+
+### Directory Structure
+```
+discovery/
+├── tests/
+│   ├── __init__.py
+│   ├── test_error_handling.py     # Test @api_error_handler decorator
+│   ├── test_validation.py         # Test input validation scenarios
+│   ├── test_api_endpoints.py      # Test API functionality end-to-end
+│   ├── test_exceptions.py         # Test custom exception classes
+│   └── fixtures.py                # Test data factories and fixtures
+```
+
+### Configuration Files
+- **pytest.ini**: pytest configuration
+- **conftest.py**: Shared test fixtures and configuration
+
+## 🧪 Test Categories & Scenarios
+
+### 1. Error Handling System Tests (`test_error_handling.py`)
+
+#### 1.1 Decorator Functionality Tests
+- [ ] **Request tracing generation**
+  - Verify UUID generation for request_id
+  - Check request_id is included in logs
+  - Ensure request_id is unique per request
+
+- [ ] **Logging functionality**
+  - Test structured logging with extra fields
+  - Verify log levels (INFO, WARNING, ERROR)
+  - Check log messages contain request context
+
+- [ ] **Exception catching**
+  - Test APIError exceptions are caught and converted
+  - Verify generic exceptions are handled gracefully
+  - Check exc_info=True for unexpected errors
+
+#### 1.2 API Error Response Tests
+- [ ] **ValidationError responses**
+  - Custom message handling
+  - Correct HTTP status code (400)
+  - Proper JSON response structure
+
+- [ ] **DeviceNotFoundAPIError responses**
+  - Default message handling
+  - Correct HTTP status code (404)
+  - Proper error code and type
+
+- [ ] **Generic error responses**
+  - Unexpected exception handling
+  - Request ID inclusion in response
+  - Correct HTTP status code (500)
+
+### 2. Input Validation Tests (`test_validation.py`)
+
+#### 2.1 Period Parameter Validation
+- [ ] **Valid period values**
+  - Test each valid period: 1hour, 6hours, 24hours, 7days, 30days
+  - Verify correct time calculations
+  - Check default period handling
+
+- [ ] **Invalid period values**
+  - Test completely invalid strings
+  - Test empty string handling
+  - Test case sensitivity (if applicable)
+  - Verify error message includes valid options
+
+#### 2.2 Device ID Validation
+- [ ] **Valid device IDs**
+  - Test with existing device IDs
+  - Verify proper device retrieval
+
+- [ ] **Invalid device IDs**
+  - Test non-existent device IDs
+  - Test invalid device ID formats (if applicable)
+  - Verify proper 404 responses
+
+#### 2.3 Points Parameter Validation
+- [ ] **Valid points parameters**
+  - Test comma-separated point identifiers
+  - Test single point identifier
+  - Test empty points parameter (should return all points)
+
+- [ ] **Invalid points parameters**
+  - Test malformed point identifiers
+  - Test non-existent point identifiers
+  - Verify graceful handling of partial matches
+
+### 3. API Endpoint Integration Tests (`test_api_endpoints.py`)
+
+#### 3.1 Device Trends API Tests
+- [ ] **Successful requests**
+  - Test with valid device and default parameters
+  - Test with specific period parameters
+  - Test with points filtering
+  - Verify JSON response structure
+
+- [ ] **Error scenarios**
+  - Test with non-existent device ID
+  - Test with invalid period parameter
+  - Test with invalid points parameter
+  - Verify proper error responses
+
+#### 3.2 Device Status API Tests
+- [ ] **Successful requests**
+  - Test device status overview
+  - Verify summary statistics
+  - Check device status categorization
+  - Test with empty device list
+
+- [ ] **Error scenarios**
+  - Test database connection issues (mocked)
+  - Test malformed requests
+  - Verify proper error responses
+
+### 4. Exception Classes Tests (`test_exceptions.py`)
+
+#### 4.1 APIError Base Class Tests
+- [ ] **to_response() method**
+  - Verify JSON structure
+  - Check status code setting
+  - Test timestamp format
+
+#### 4.2 ValidationError Tests
+- [ ] **Custom message handling**
+  - Test constructor with custom message
+  - Test default message fallback
+  - Verify message attribute setting
+
+#### 4.3 DeviceNotFoundAPIError Tests
+- [ ] **Default behavior**
+  - Test default message
+  - Verify status code (404)
+  - Check error code
+
+## 🏭 Test Data & Fixtures (`fixtures.py`)
+
+### Factory Classes
+```python
+class BACnetDeviceFactory(factory.django.DjangoModelFactory):
+    # Factory for creating test devices
+
+class BACnetPointFactory(factory.django.DjangoModelFactory):
+    # Factory for creating test points
+
+class BACnetReadingFactory(factory.django.DjangoModelFactory):
+    # Factory for creating test readings
+```
+
+### Test Fixtures
+- **Sample devices** with various statuses
+- **Sample points** with different types
+- **Sample readings** with time-series data
+- **Mock API responses** for external services
+
+## 📊 Testing Configuration
+
+### pytest.ini Configuration
+```ini
+[tool:pytest]
+DJANGO_SETTINGS_MODULE = bacnet_project.settings
+python_files = tests.py test_*.py *_tests.py
+addopts = --cov=discovery --cov-report=html --cov-report=term-missing
+testpaths = discovery/tests
+```
+
+### Coverage Goals
+- **Target**: 90%+ code coverage
+- **Focus areas**: Error handling, validation, API endpoints
+- **Reports**: HTML and terminal coverage reports
+
+## 🔧 Testing Utilities
+
+### Mock Helpers
+```python
+# Mock BACnet service responses
+def mock_bacnet_service_success():
+def mock_bacnet_service_failure():
+
+# Mock database queries
+def mock_device_query_success():
+def mock_device_query_failure():
+```
+
+### Assertion Helpers
+```python
+# Custom assertions for API responses
+def assert_api_error_response(response, error_code, status_code):
+def assert_api_success_response(response, expected_data):
+```
+
+## 📝 Test Implementation Priority
+
+### Phase 3.1: Foundation Setup (Day 1)
+1. Install testing dependencies
+2. Create test directory structure
+3. Set up pytest configuration
+4. Create basic fixtures and factories
+
+### Phase 3.2: Error Handling Tests (Day 1-2)
+1. Test @api_error_handler decorator functionality
+2. Test custom exception classes
+3. Test error response formats
+4. Test logging and request tracing
+
+### Phase 3.3: Validation Tests (Day 2)
+1. Test period parameter validation
+2. Test device ID validation
+3. Test points parameter validation
+4. Test edge cases and boundary conditions
+
+### Phase 3.4: Integration Tests (Day 2-3)
+1. Test full API workflows
+2. Test database interactions
+3. Test error scenarios end-to-end
+4. Test response format consistency
+
+### Phase 3.5: Coverage & Optimization (Day 3)
+1. Run coverage analysis
+2. Add missing test cases
+3. Optimize test performance
+4. Generate coverage reports
+
+## 🧪 Test Commands
+
+### Running Tests
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest discovery/tests/test_error_handling.py
+
+# Run with coverage
+pytest --cov=discovery
+
+# Run with verbose output
+pytest -v
+
+# Run specific test
+pytest discovery/tests/test_validation.py::test_invalid_period_parameter
+```
+
+### Coverage Reports
+```bash
+# Generate HTML coverage report
+pytest --cov=discovery --cov-report=html
+
+# Generate terminal coverage report
+pytest --cov=discovery --cov-report=term-missing
+
+# Generate coverage report and open in browser
+pytest --cov=discovery --cov-report=html && open htmlcov/index.html
+```
+
+## ✅ Testing Checklist
+
+### Error Handling System
+- [ ] Request tracing with UUID generation
+- [ ] Structured logging with request context
+- [ ] APIError exception handling
+- [ ] ValidationError custom messages
+- [ ] DeviceNotFoundAPIError responses
+- [ ] Generic exception handling
+- [ ] HTTP status code accuracy
+- [ ] JSON response consistency
+
+### Input Validation
+- [ ] Period parameter validation (all valid/invalid cases)
+- [ ] Device ID validation (existing/non-existing)
+- [ ] Points parameter validation (valid/invalid formats)
+- [ ] Error message clarity and helpfulness
+- [ ] Default parameter handling
+
+### API Endpoints
+- [ ] Device trends API success scenarios
+- [ ] Device trends API error scenarios
+- [ ] Device status API success scenarios
+- [ ] Device status API error scenarios
+- [ ] Response format consistency
+- [ ] Database query optimization
+
+### Test Infrastructure
+- [ ] Test data factories working
+- [ ] Mock helpers functioning
+- [ ] Coverage reporting accurate
+- [ ] Test isolation maintained
+- [ ] Performance acceptable
+
+## 📚 Testing Best Practices
+
+### Test Organization
+- **One test per scenario**: Each test should focus on one specific behavior
+- **Descriptive test names**: Test names should clearly describe what is being tested
+- **Arrange-Act-Assert**: Structure tests with clear setup, execution, and verification
+- **Test isolation**: Each test should be independent and not affect others
+
+### Mock Strategy
+- **Mock external dependencies**: BACnet services, external APIs
+- **Keep database tests minimal**: Use factories for test data
+- **Mock time-dependent code**: Use freezegun for timezone.now() calls
+- **Verify mock interactions**: Ensure mocks are called as expected
+
+### Coverage Strategy
+- **Focus on critical paths**: Error handling, validation, security
+- **Test edge cases**: Boundary conditions, empty data, null values
+- **Test error scenarios**: All exception paths should be covered
+- **Ignore trivial code**: Simple getters/setters don't need extensive testing
+
+## 🚀 Success Metrics
+
+### Quantitative Goals
+- **90%+ test coverage** on error handling and validation code
+- **All API endpoints tested** with success and error scenarios
+- **Zero test failures** in CI/CD pipeline
+- **<5 seconds total test runtime** for fast feedback
+
+### Qualitative Goals
+- **Clear test documentation** with descriptive names and docstrings
+- **Maintainable test code** that's easy to update when APIs change
+- **Comprehensive error scenario coverage** for production confidence
+- **Professional testing practices** demonstrating enterprise-level skills
+
+## 🔗 Related Documentation
+
+### Files to Update After Testing
+- **README.md**: Add testing instructions
+- **requirements.txt**: Add testing dependencies
+- **CI/CD configuration**: Add test runner configuration
+- **TODO-readiness.txt**: Update with testing completion
+
+### Integration Points
+- **Error handling system**: All decorator and exception functionality
+- **API validation**: All input validation scenarios
+- **Database models**: All query and relationship testing
+- **Docker setup**: Ensure tests run in containerized environment

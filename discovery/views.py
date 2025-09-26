@@ -23,15 +23,24 @@ abstracting service layer complexity into user-friendly endpoints.
 """
 
 import logging
+from datetime import timedelta
 
-from django.db.models import Count
-from django.http import JsonResponse
+from django.db.models import Avg, Count, FloatField, Max, Min
+from django.db.models.functions import Cast
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from .constants import BACnetConstants
-from .exceptions import BACnetError, ConfigurationError, DeviceNotFoundError
+from .decorators import api_error_handler, api_rate_limit
+from .exceptions import (
+    BACnetError,
+    ConfigurationError,
+    DeviceNotFoundAPIError,
+    DeviceNotFoundError,
+    ValidationError,
+)
 from .models import BACnetDevice, BACnetPoint
 from .services import BACnetService
 
@@ -307,9 +316,12 @@ def clear_devices(request):
     return JsonResponse({"success": False, "message": "Invalid request"})
 
 
+@api_rate_limit(rate="200/h", method=["GET", "POST"])
+@api_error_handler
+@csrf_exempt
 def devices_status_api(request):
     """
-    GET /api/devices/status/ - ALl devices overview
+    GET /api/devices/status/ - All devices overview
     """
 
     try:
@@ -390,13 +402,88 @@ def devices_status_api(request):
                 "timestamp": timezone.now().isoformat(),
             }
         )
-    except Exception as e:
-        logger.error(f"Error in devices_status_api: {e}")
+    except Http404:
+        raise DeviceNotFoundAPIError()
+
+
+@api_rate_limit(rate="100/h", method=["GET", "POST"])
+@api_error_handler
+def device_trends_api(request, device_id):
+    """
+    GET /api/devices/{id}/analytics/trends/
+    ?period=24hours&points=analogInput:100,analogInput:101
+    Returns historical data trends for specific device points
+    """
+
+    try:
+        device = get_object_or_404(BACnetDevice, device_id=device_id)
+        all_points = device.points.all()
+        period = request.GET.get("period", "24hours")
+        if period not in BACnetConstants.PERIOD_PARAMETERS:
+            raise ValidationError(
+                f"Invalid period '{period}'. Valid options: "
+                f"{list(BACnetConstants.PERIOD_PARAMETERS.keys())}"
+            )
+        start_time = timezone.now() - timedelta(
+            hours=BACnetConstants.PERIOD_PARAMETERS[period]
+        )
+        points_param = request.GET.get("points", "")
+        if points_param:
+            points_list = points_param.split(",")
+            points = all_points.filter(identifier__in=points_list)
+        else:
+            points = all_points
+
+        points_info = []
+
+        for point in points:
+            readings = point.readings.filter(read_time__gte=start_time)
+            stats = readings.aggregate(
+                min_value=Min(Cast("value", FloatField())),
+                max_value=Max(Cast("value", FloatField())),
+                avg_value=Avg(Cast("value", FloatField())),
+                count=Count("id"),
+            )
+            points_info.append(
+                {
+                    "point_identifier": point.identifier,
+                    "readings": [
+                        {
+                            "timestamp": r.read_time.isoformat(),
+                            "value": float(r.value) if r.value else None,
+                        }
+                        for r in readings.order_by("read_time")
+                    ],
+                    "statistics": {
+                        "min": (
+                            round(stats["min_value"], 2) if stats["min_value"] else None
+                        ),
+                        "max": (
+                            round(stats["max_value"], 2) if stats["max_value"] else None
+                        ),
+                        "avg": (
+                            round(stats["avg_value"], 2) if stats["avg_value"] else None
+                        ),
+                        "count": stats["count"],
+                    },
+                }
+            )
+
         return JsonResponse(
             {
-                "success": False,
-                "error": "Failed to retrieve device status",
-                "timestamp": timezone.now().isoformat(),
-            },
-            status=500,
+                "success": True,
+                "device_id": device_id,
+                "period": period,
+                "points": points_info,
+            }
         )
+
+    except Http404:
+        raise DeviceNotFoundAPIError()
+
+
+def api_docs(request):
+    """
+    API Documentation page
+    """
+    return render(request, "discovery/api_docs.html")
