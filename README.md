@@ -8,6 +8,8 @@ A Django web application for discovering, monitoring, and reading BACnet devices
 - **Point Discovery**: Read and catalog all BACnet objects from discovered devices
 - **Optimized Batch Reading**: High-performance chunked batch reading with 3.7x speedup
 - **Real-time Monitoring**: Read current sensor values from analog/binary points
+- **Modern REST API**: Django REST Framework with auto-generated OpenAPI documentation
+- **Interactive API Documentation**: Swagger UI for easy API testing and exploration
 - **Web Dashboard**: Clean, responsive interface for device management
 - **PostgreSQL Database**: Robust data persistence with proper indexing
 - **Custom Exception Handling**: Professional error management and logging
@@ -33,9 +35,11 @@ A Django web application for discovering, monitoring, and reading BACnet devices
 
 - Python 3.12+
 - Django 5.2+
+- Django REST Framework 3.15.2+
 - PostgreSQL 12+
 - BAC0 library (23.07.03+)
 - Bootstrap 5.1.3 (loaded via CDN)
+- drf-spectacular (for OpenAPI documentation)
 
 ## Platform Support
 
@@ -228,8 +232,34 @@ python manage.py clean_db
 
 ## API Endpoints
 
-The application provides REST API endpoints:
+The application provides both legacy and modern REST API endpoints:
 
+### Modern DRF API (v2) - Recommended
+- `GET /api/v2/devices/status/` - Get comprehensive device status overview with statistics
+- `GET /api/v2/devices/{device_id}/trends/` - Get historical trends and analytics for device points
+- `GET /api/docs/` - Interactive Swagger UI documentation
+- `GET /api/schema/` - OpenAPI schema for API documentation
+
+**Features:**
+- Auto-generated OpenAPI documentation
+- Professional serialization and validation
+- Consistent error handling with detailed responses
+- Rate limiting (200/h for status, 100/h for trends)
+- Query parameters for flexible data filtering
+
+**Example Usage:**
+```bash
+# Get all device status
+curl "http://localhost:8000/api/v2/devices/status/"
+
+# Get 24-hour trends for specific device
+curl "http://localhost:8000/api/v2/devices/123/trends/?period=24hours"
+
+# Get trends for specific points only
+curl "http://localhost:8000/api/v2/devices/123/trends/?period=7days&points=analogInput:100,analogInput:101"
+```
+
+### Legacy API (v1) - Function-based
 - `POST /api/start-discovery/` - Start device discovery
 - `POST /api/discover-points/{device_id}/` - Discover device points
 - `POST /api/read-values/{device_id}/` - Read all point values from device
@@ -595,7 +625,15 @@ For reference, these are the minimal files added to enable Windows support:
 
 ## Changelog
 
-### Version 2.1 (Current) - Windows Support
+### Version 2.2 (Current) - Django REST Framework Integration
+- Added Django REST Framework with professional class-based API views
+- Created comprehensive serializers for data validation and documentation
+- Implemented auto-generated OpenAPI documentation with Swagger UI
+- Added modern v2 API endpoints with rate limiting and error handling
+- Maintained backward compatibility with legacy function-based API endpoints
+- Enhanced API features: query parameters, pagination, and structured responses
+
+### Version 2.1 - Windows Support
 - Added cross-platform support with automatic OS detection
 - Implemented hybrid architecture for Windows (native BACnet + containerized services)
 - Fixed BACnet connection reuse issues
