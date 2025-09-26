@@ -18,6 +18,7 @@ Including another URLconf
 from django.urls import path
 
 from . import views
+from .views import DeviceStatusAPIView, DeviceTrendsAPIView
 
 app_name = "discovery"
 
@@ -52,5 +53,14 @@ urlpatterns = [
         views.device_trends_api,
         name="device_trends_api",
     ),
-    path("api/docs/", views.api_docs, name="api_docs"),
+    path(
+        "api/v2/devices/status/",
+        DeviceStatusAPIView.as_view(),
+        name="device-status-api-v2",
+    ),
+    path(
+        "api/v2/devices/<int:device_id>/trends/",
+        DeviceTrendsAPIView.as_view(),
+        name="device-trends-api-v2",
+    ),
 ]
