@@ -920,12 +920,12 @@ class DataQualityAPIView(APIView):
                             "missing_readings": max(
                                 0, expected_reading_per_point - actual_readings
                             ),
-                            "outlier_count": len(outliers)
-                            if "outliers" in locals()
-                            else 0,
-                            "last_reading_time": latest_reading.read_time
-                            if latest_reading
-                            else None,
+                            "outlier_count": (
+                                len(outliers) if "outliers" in locals() else 0
+                            ),
+                            "last_reading_time": (
+                                latest_reading.read_time if latest_reading else None
+                            ),
                             "data_gaps_hours": 0,
                             "quality_score": overall_score,
                         }
@@ -946,26 +946,34 @@ class DataQualityAPIView(APIView):
                         "device_id": device.id,
                         "address": device.address,
                         "metrics": {
-                            "completeness_score": sum(point_completeness_scores)
-                            / len(point_completeness_scores)
-                            if point_completeness_scores
-                            else 0,
-                            "accuracy_score": sum(point_accuracy_scores)
-                            / len(point_accuracy_scores)
-                            if point_accuracy_scores
-                            else 0,
-                            "freshness_score": sum(point_freshness_scores)
-                            / len(point_freshness_scores)
-                            if point_freshness_scores
-                            else 0,
-                            "consistency_score": sum(point_consistency_scores)
-                            / len(point_consistency_scores)
-                            if point_consistency_scores
-                            else 0,
-                            "overall_quality_score": sum(point_overall_scores)
-                            / len(point_overall_scores)
-                            if point_overall_scores
-                            else 0,
+                            "completeness_score": (
+                                sum(point_completeness_scores)
+                                / len(point_completeness_scores)
+                                if point_completeness_scores
+                                else 0
+                            ),
+                            "accuracy_score": (
+                                sum(point_accuracy_scores) / len(point_accuracy_scores)
+                                if point_accuracy_scores
+                                else 0
+                            ),
+                            "freshness_score": (
+                                sum(point_freshness_scores)
+                                / len(point_freshness_scores)
+                                if point_freshness_scores
+                                else 0
+                            ),
+                            "consistency_score": (
+                                sum(point_consistency_scores)
+                                / len(point_consistency_scores)
+                                if point_consistency_scores
+                                else 0
+                            ),
+                            "overall_quality_score": (
+                                sum(point_overall_scores) / len(point_overall_scores)
+                                if point_overall_scores
+                                else 0
+                            ),
                         },
                         "point_quality": point_quality_data,
                         "data_coverage_percentage": coverage,
