@@ -237,6 +237,7 @@ The application provides both legacy and modern REST API endpoints:
 ### Modern DRF API (v2) - Recommended
 - `GET /api/v2/devices/status/` - Get comprehensive device status overview with statistics
 - `GET /api/v2/devices/{device_id}/trends/` - Get historical trends and analytics for device points
+- `GET /api/v2/devices/performance/` - Get device performance metrics and activity analytics
 - `GET /api/docs/` - Interactive Swagger UI documentation
 - `GET /api/schema/` - OpenAPI schema for API documentation
 
@@ -257,6 +258,34 @@ curl "http://localhost:8000/api/v2/devices/123/trends/?period=24hours"
 
 # Get trends for specific points only
 curl "http://localhost:8000/api/v2/devices/123/trends/?period=7days&points=analogInput:100,analogInput:101"
+
+# Get device performance analytics
+curl "http://localhost:8000/api/v2/devices/performance/"
+```
+
+**Device Performance API Response:**
+```json
+{
+  "success": true,
+  "summary": {
+    "total_active_devices": 6,
+    "total_readings": 2153,
+    "avg_uptime_percentage": 95.2
+  },
+  "devices": [
+    {
+      "device_id": 123,
+      "address": "192.168.1.5",
+      "total_readings": 456,
+      "readings_last_24h": 89,
+      "avg_data_quality": 98.5,
+      "most_active_point": "analogInput:100",
+      "last_reading_time": "2024-01-15T10:30:00Z",
+      "uptime_percentage": 96.8
+    }
+  ],
+  "timestamp": "2024-01-15T10:35:00Z"
+}
 ```
 
 ### Legacy API (v1) - Function-based
@@ -630,6 +659,7 @@ For reference, these are the minimal files added to enable Windows support:
 - Created comprehensive serializers for data validation and documentation
 - Implemented auto-generated OpenAPI documentation with Swagger UI
 - Added modern v2 API endpoints with rate limiting and error handling
+- **Device Performance Analytics API**: Real-time device activity monitoring and performance metrics
 - Maintained backward compatibility with legacy function-based API endpoints
 - Enhanced API features: query parameters, pagination, and structured responses
 
