@@ -46,8 +46,12 @@ from .exceptions import (
     DeviceNotFoundError,
     ValidationError,
 )
-from .models import BACnetDevice, BACnetPoint
-from .serializers import DeviceStatusResponseSerializer, DeviceTrendsResponseSerializer
+from .models import BACnetDevice, BACnetPoint, BACnetReading
+from .serializers import (
+    DevicePerformanceResponseSerializer,
+    DeviceStatusResponseSerializer,
+    DeviceTrendsResponseSerializer,
+)
 from .services import BACnetService
 
 
@@ -685,3 +689,93 @@ class DeviceTrendsAPIView(APIView):
 
         except Http404:
             raise DeviceNotFoundAPIError()
+
+
+class DevicePerformanceAPIView(APIView):
+    """
+    Get device performance metrics and statistics
+    """
+
+    @extend_schema(
+        summary="Get device performance dashboard",
+        description=(
+            "Returns performance metrics for all devices including "
+            "reading counts, data quality, and activity statistics"
+        ),
+        responses={200: DevicePerformanceResponseSerializer},
+    )
+    def get(self, request):
+        try:
+            devices_performance = []
+            active_devices = BACnetDevice.objects.filter(is_active=True)
+
+            last_24h = timezone.now() - timedelta(hours=24)
+
+            for device in active_devices:
+                all_readings = BACnetReading.objects.filter(point__device=device)
+                recent_readings = all_readings.filter(read_time__gte=last_24h)
+
+                total_readings = all_readings.count()
+                readings_24h = recent_readings.count()
+
+                quality_avg = all_readings.aggregate(
+                    avg_quality=Avg("data_quality_score")
+                )["avg_quality"]
+
+                most_active = (
+                    all_readings.values("point__identifier")
+                    .annotate(reading_count=Count("id"))
+                    .order_by("-reading_count")
+                    .first()
+                )
+                most_active_point = (
+                    most_active["point__identifier"] if most_active else None
+                )
+
+                uptime_percentage = 100.0 if device.is_online else 0.0
+
+                devices_performance.append(
+                    {
+                        "device_id": device.device_id,
+                        "address": device.address,
+                        "total_readings": total_readings,
+                        "readings_last_24h": readings_24h,
+                        "avg_data_quality": quality_avg,
+                        "most_active_point": most_active_point,
+                        "last_reading_time": device.last_seen,
+                        "uptime_percentage": uptime_percentage,
+                    }
+                )
+
+                total_devices = len(devices_performance)
+                online_devices = len(
+                    [d for d in devices_performance if d["uptime_percentage"] > 0]
+                )
+                total_readings_all = sum(
+                    d["total_readings"] for d in devices_performance
+                )
+
+            return Response(
+                {
+                    "success": True,
+                    "summary": {
+                        "total_devices": total_devices,
+                        "online_devices": online_devices,
+                        "total_readings": total_readings_all,
+                        "avg_readings_per_device": (
+                            round(total_readings_all / total_devices, 2)
+                            if total_devices > 0
+                            else 0
+                        ),
+                    },
+                    "devices": devices_performance,
+                    "timestamp": timezone.now(),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
