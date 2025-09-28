@@ -1004,9 +1004,7 @@ class DataQualityAPIView(APIView):
                     / num_devices
                 )
             else:
-                summary_completeness = (
-                    summary_accuracy_score
-                ) = (
+                summary_completeness = summary_accuracy_score = (
                     summary_freshness_score
                 ) = summary_consistency_score = summary_overall_quality_score = 0
 
