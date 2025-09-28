@@ -18,7 +18,12 @@ Including another URLconf
 from django.urls import path
 
 from . import views
-from .views import DevicePerformanceAPIView, DeviceStatusAPIView, DeviceTrendsAPIView
+from .views import (
+    DataQualityAPIView,
+    DevicePerformanceAPIView,
+    DeviceStatusAPIView,
+    DeviceTrendsAPIView,
+)
 
 app_name = "discovery"
 
@@ -67,5 +72,10 @@ urlpatterns = [
         "api/v2/devices/performance/",
         DevicePerformanceAPIView.as_view(),
         name="device-performance-api",
+    ),
+    path(
+        "api/v2/devices/data-quality/",
+        DataQualityAPIView.as_view(),
+        name="device-data-quality-api",
     ),
 ]

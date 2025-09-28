@@ -55,3 +55,37 @@ class DevicePerformanceResponseSerializer(serializers.Serializer):
     summary = serializers.DictField()
     devices = DevicePerformanceSerializer(many=True)
     timestamp = serializers.DateTimeField()
+
+
+class DataQualityMetricsSerializer(serializers.Serializer):
+    completeness_score = serializers.FloatField()
+    accuracy_score = serializers.FloatField()
+    freshness_score = serializers.FloatField()
+    consistency_score = serializers.FloatField()
+    overall_quality_score = serializers.FloatField()
+
+
+class PointQualitySerializer(serializers.Serializer):
+    point_identifier = serializers.CharField()
+    total_readings = serializers.IntegerField()
+    missing_readings = serializers.IntegerField()
+    outlier_count = serializers.IntegerField()
+    last_reading_time = serializers.DateTimeField(allow_null=True)
+    data_gaps_hours = serializers.FloatField()
+    quality_score = serializers.FloatField()
+
+
+class DeviceDataQualitySerializer(serializers.Serializer):
+    device_id = serializers.IntegerField()
+    address = serializers.CharField()
+    metrics = DataQualityMetricsSerializer()
+    point_quality = PointQualitySerializer(many=True)
+    data_coverage_percentage = serializers.FloatField()
+    avg_reading_interval_minutes = serializers.FloatField(allow_null=True)
+
+
+class DataQualityResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    summary = DataQualityMetricsSerializer()
+    devices = DeviceDataQualitySerializer(many=True)
+    timestamp = serializers.DateTimeField()

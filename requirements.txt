@@ -70,3 +70,6 @@ djangorestframework==3.15.2
 django-ratelimit==4.1.0
 django-cors-headers==4.3.1
 drf-spectacular==0.27.0
+
+# Data Analysis & Science
+numpy==1.26.4
