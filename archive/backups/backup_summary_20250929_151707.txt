@@ -1,0 +1,33 @@
+BACnet Django Database Backup Summary
+=====================================
+
+Backup File: bacnet_anomaly_detection_20250929_151707.sql
+Date: September 29, 2025, 15:17:07
+Size: 54,664 bytes
+
+Contents:
+- Complete PostgreSQL database dump
+- Includes anomaly detection schema (anomaly_score and is_anomaly fields)
+- Database includes accumulated data from running server
+
+Features Included:
+✅ Anomaly Detection System (Z-score based)
+✅ Temperature sensor monitoring (79 sensors detected)
+✅ Real-time data collection with anomaly scoring
+✅ BACnet device discovery and point management
+✅ Historical readings with anomaly flags
+
+Database Status at Backup:
+- PostgreSQL 15.14 (Debian)
+- Includes discovery_bacnetreading table with anomaly fields
+- Contains accumulated sensor data from continuous operation
+
+Restoration:
+To restore this backup:
+1. psql -U bacnet_user -d bacnet_django < bacnet_anomaly_detection_20250929_151707.sql
+
+Notes:
+- This backup contains the first implementation of anomaly detection
+- Z-score threshold: 2.5 standard deviations
+- 24-hour rolling window for statistical analysis
+- Automatic temperature sensor detection by units

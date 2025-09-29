@@ -34,6 +34,7 @@ from .exceptions import (
     BACnetPropertyReadError,
     BACnetServiceError,
 )
+from .ml_utils import AnomalyDetector
 from .models import BACnetDevice, BACnetPoint, BACnetReading, DeviceStatusHistory
 
 logging.basicConfig(
@@ -56,6 +57,7 @@ class BACnetService:
         """
         self.bacnet = None
         self.callback = callback
+        self.anomaly_detector = AnomalyDetector()
 
     def __enter__(self):
         if self.bacnet is not None:
@@ -406,6 +408,27 @@ class BACnetService:
                 device.device_id, f"Failed to read point {point.identifier}", e
             )
 
+    def _detect_anomaly_if_temperature(self, point, value_str):
+        """
+        Run anomaly detection if this is a temperature sensor.
+        Returns (anomaly_score, is_anomaly) tuple.
+        """
+        if (
+            point.object_type == "analogInput"
+            and point.units
+            and "degree" in point.units.lower()
+        ):
+            try:
+                numeric_value = float(value_str)
+                anomaly_score = self.anomaly_detector.detect_z_score_anomaly(
+                    point, numeric_value
+                )
+                is_anomaly = anomaly_score > self.anomaly_detector.z_score_threshold
+                return anomaly_score, is_anomaly
+            except (ValueError, TypeError):
+                pass
+        return None, False
+
     def _read_single_point(self, device, point, results):
         try:
             read_string = (
@@ -415,9 +438,14 @@ class BACnetService:
             self._log(f"📖 Reading {point.identifier}")
             value = self.bacnet.read(read_string)
             if value is not None:
+                anomaly_score, is_anomaly = self._detect_anomaly_if_temperature(
+                    point, str(value)
+                )
                 BACnetReading.objects.create(
                     point=point,
                     value=str(value),
+                    anomaly_score=anomaly_score,
+                    is_anomaly=is_anomaly,
                     read_time=timezone.now(),
                 )
                 results["readings_collected"] += 1
@@ -478,9 +506,14 @@ class BACnetService:
                 value_index += 2
 
             if present_value is not None:
+                anomaly_score, is_anomaly = self._detect_anomaly_if_temperature(
+                    point, str(present_value)
+                )
                 BACnetReading.objects.create(
                     point=point,
                     value=str(present_value),
+                    anomaly_score=anomaly_score,
+                    is_anomaly=is_anomaly,
                     read_time=timezone.now(),
                 )
                 point.present_value = str(present_value)
