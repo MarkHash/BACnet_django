@@ -237,6 +237,8 @@ The application provides both legacy and modern REST API endpoints:
 ### Modern DRF API (v2) - Recommended
 - `GET /api/v2/devices/status/` - Get comprehensive device status overview with statistics
 - `GET /api/v2/devices/{device_id}/trends/` - Get historical trends and analytics for device points
+- `GET /api/v2/devices/performance/` - Get device performance metrics and activity analytics
+- `GET /api/v2/devices/data-quality/` - Get comprehensive data quality analysis for all devices
 - `GET /api/docs/` - Interactive Swagger UI documentation
 - `GET /api/schema/` - OpenAPI schema for API documentation
 
@@ -269,6 +271,86 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/v2/devices/2000/trends?period=
 - `24hours`: ~338KB (good for daily views)
 - `7days`: ~533KB (use with caution, consider pagination)
 - For frontend: Recommend 24-hour default with optional historical data
+
+# Get device performance analytics
+curl "http://localhost:8000/api/v2/devices/performance/"
+
+# Get data quality analysis for all devices
+curl "http://localhost:8000/api/v2/devices/data-quality/"
+```
+
+**Device Performance API Response:**
+```json
+{
+  "success": true,
+  "summary": {
+    "total_active_devices": 6,
+    "total_readings": 2153,
+    "avg_uptime_percentage": 95.2
+  },
+  "devices": [
+    {
+      "device_id": 123,
+      "address": "192.168.1.5",
+      "total_readings": 456,
+      "readings_last_24h": 89,
+      "avg_data_quality": 98.5,
+      "most_active_point": "analogInput:100",
+      "last_reading_time": "2024-01-15T10:30:00Z",
+      "uptime_percentage": 96.8
+    }
+  ],
+  "timestamp": "2024-01-15T10:35:00Z"
+}
+```
+
+**Data Quality API Response:**
+```json
+{
+  "success": true,
+  "summary": {
+    "completeness_score": 85.4,
+    "accuracy_score": 96.2,
+    "freshness_score": 78.9,
+    "consistency_score": 82.1,
+    "overall_quality_score": 87.3
+  },
+  "devices": [
+    {
+      "device_id": 123,
+      "address": "192.168.1.5",
+      "metrics": {
+        "completeness_score": 88.2,
+        "accuracy_score": 98.5,
+        "freshness_score": 92.1,
+        "consistency_score": 85.7,
+        "overall_quality_score": 91.4
+      },
+      "point_quality": [
+        {
+          "point_identifier": "analogInput:100",
+          "total_readings": 245,
+          "missing_readings": 43,
+          "outlier_count": 2,
+          "last_reading_time": "2024-01-15T10:30:00Z",
+          "data_gaps_hours": 1.5,
+          "quality_score": 89.3
+        }
+      ],
+      "data_coverage_percentage": 85.1,
+      "avg_reading_interval_minutes": 5.2
+    }
+  ],
+  "timestamp": "2024-01-15T10:35:00Z"
+}
+```
+
+**Data Quality Metrics Explained:**
+- **Completeness Score (0-100%)**: Percentage of expected readings present vs missing
+- **Accuracy Score (0-100%)**: Percentage of readings without outliers (using IQR method)
+- **Freshness Score (0-100%)**: How recent the latest readings are (exponential decay)
+- **Consistency Score (0-100%)**: Regularity of reading intervals (low standard deviation = high score)
+- **Overall Quality Score**: Weighted average (40% completeness, 30% accuracy, 20% freshness, 10% consistency)
 
 ### Legacy API (v1) - Function-based
 - `POST /api/start-discovery/` - Start device discovery
@@ -641,6 +723,8 @@ For reference, these are the minimal files added to enable Windows support:
 - Created comprehensive serializers for data validation and documentation
 - Implemented auto-generated OpenAPI documentation with Swagger UI
 - Added modern v2 API endpoints with rate limiting and error handling
+- **Device Performance Analytics API**: Real-time device activity monitoring and performance metrics
+- **Data Quality Monitoring API**: Comprehensive data quality analysis with completeness, accuracy, freshness, and consistency metrics
 - Maintained backward compatibility with legacy function-based API endpoints
 - Enhanced API features: query parameters, pagination, and structured responses
 

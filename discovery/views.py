@@ -25,6 +25,7 @@ abstracting service layer complexity into user-friendly endpoints.
 import logging
 from datetime import timedelta
 
+import numpy as np
 from django.db.models import Avg, Count, FloatField, Max, Min, Q
 from django.db.models.functions import Cast
 from django.http import Http404, JsonResponse
@@ -46,8 +47,13 @@ from .exceptions import (
     DeviceNotFoundError,
     ValidationError,
 )
-from .models import BACnetDevice, BACnetPoint
-from .serializers import DeviceStatusResponseSerializer, DeviceTrendsResponseSerializer
+from .models import BACnetDevice, BACnetPoint, BACnetReading
+from .serializers import (
+    DataQualityResponseSerializer,
+    DevicePerformanceResponseSerializer,
+    DeviceStatusResponseSerializer,
+    DeviceTrendsResponseSerializer,
+)
 from .services import BACnetService
 
 
@@ -706,3 +712,341 @@ class DeviceTrendsAPIView(APIView):
 
         except Http404:
             raise DeviceNotFoundAPIError()
+
+
+class DevicePerformanceAPIView(APIView):
+    """
+    Get device performance metrics and statistics
+    """
+
+    @extend_schema(
+        summary="Get device performance dashboard",
+        description=(
+            "Returns performance metrics for all devices including "
+            "reading counts, data quality, and activity statistics"
+        ),
+        responses={200: DevicePerformanceResponseSerializer},
+    )
+    def get(self, request):
+        try:
+            devices_performance = []
+            active_devices = BACnetDevice.objects.filter(is_active=True)
+
+            last_24h = timezone.now() - timedelta(hours=24)
+
+            for device in active_devices:
+                all_readings = BACnetReading.objects.filter(point__device=device)
+                recent_readings = all_readings.filter(read_time__gte=last_24h)
+
+                total_readings = all_readings.count()
+                readings_24h = recent_readings.count()
+
+                quality_avg = all_readings.aggregate(
+                    avg_quality=Avg("data_quality_score")
+                )["avg_quality"]
+
+                most_active = (
+                    all_readings.values("point__identifier")
+                    .annotate(reading_count=Count("id"))
+                    .order_by("-reading_count")
+                    .first()
+                )
+                most_active_point = (
+                    most_active["point__identifier"] if most_active else None
+                )
+
+                uptime_percentage = 100.0 if device.is_online else 0.0
+
+                devices_performance.append(
+                    {
+                        "device_id": device.device_id,
+                        "address": device.address,
+                        "total_readings": total_readings,
+                        "readings_last_24h": readings_24h,
+                        "avg_data_quality": quality_avg,
+                        "most_active_point": most_active_point,
+                        "last_reading_time": device.last_seen,
+                        "uptime_percentage": uptime_percentage,
+                    }
+                )
+
+                total_devices = len(devices_performance)
+                online_devices = len(
+                    [d for d in devices_performance if d["uptime_percentage"] > 0]
+                )
+                total_readings_all = sum(
+                    d["total_readings"] for d in devices_performance
+                )
+
+            return Response(
+                {
+                    "success": True,
+                    "summary": {
+                        "total_devices": total_devices,
+                        "online_devices": online_devices,
+                        "total_readings": total_readings_all,
+                        "avg_readings_per_device": (
+                            round(total_readings_all / total_devices, 2)
+                            if total_devices > 0
+                            else 0
+                        ),
+                    },
+                    "devices": devices_performance,
+                    "timestamp": timezone.now(),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+def calculate_completeness_score(point, expected_reading_per_point):
+    actual_readings = BACnetReading.objects.filter(
+        point=point, read_time__gte=timezone.now() - timedelta(hours=24)
+    ).count()
+    completeness_score = min((actual_readings / expected_reading_per_point) * 100, 100)
+    return actual_readings, completeness_score
+
+
+def calculate_accuracy_score(point):
+    outliers = []
+    readings_values = BACnetReading.objects.filter(
+        point=point, read_time__gte=timezone.now() - timedelta(hours=24)
+    ).values_list("value", flat=True)
+    if len(readings_values) > 4:
+        q1 = np.percentile(readings_values, 25)
+        q3 = np.percentile(readings_values, 75)
+        iqr = q3 - q1
+        lower_bound = q1 - (1.5 * iqr)
+        upper_bound = q3 + (1.5 * iqr)
+
+        outliers = [v for v in readings_values if v < lower_bound or v > upper_bound]
+        accuracy_score = max(0, (1 - len(outliers) / len(readings_values)) * 100)
+    else:
+        accuracy_score = 100
+
+    return outliers, accuracy_score
+
+
+def calculate_freshness_score(point):
+    latest_reading = (
+        BACnetReading.objects.filter(point=point).order_by("-read_time").first()
+    )
+    if latest_reading:
+        hours_since_last = (
+            timezone.now() - latest_reading.read_time
+        ).total_seconds() / 3600
+        freshness_score = max(0, 100 * (0.9**hours_since_last))
+    else:
+        freshness_score = 0
+    return latest_reading, freshness_score
+
+
+def calculate_consistency_score(point):
+    readings = BACnetReading.objects.filter(
+        point=point, read_time__gte=timezone.now() - timedelta(hours=24)
+    ).order_by("read_time")
+
+    if len(readings) > 2:
+        intervals = []
+        for i in range(1, len(readings)):
+            interval = (
+                readings[i].read_time - readings[i - 1].read_time
+            ).total_seconds() / 60
+            intervals.append(interval)
+
+        std_dev = np.std(intervals)
+        consistency_score = max(0, 100 - (std_dev * 2))
+    else:
+        consistency_score = 50
+
+    return consistency_score
+
+
+# def calculate_point_quality_metrics(point, expected_reading_per_point):
+
+
+class DataQualityAPIView(APIView):
+    @extend_schema(
+        summary="Get data quality metrics for all devices",
+        description="Analyze data completeness, accuracy, freshness, and consistency "
+        "across all devices",
+        responses={200: DataQualityResponseSerializer},
+    )
+    def get(self, request):
+        EXPECTED_INTERVAL_MINUTES = 5
+        time_period_hours = 24
+        try:
+            devices_quality = []
+            active_devices = BACnetDevice.objects.filter(is_active=True)
+            total_readings = BACnetReading.objects.count()
+
+            for device in active_devices:
+                device_readings = BACnetReading.objects.filter(point__device=device)
+                device_points = BACnetPoint.objects.filter(device=device)
+
+                expected_reading_per_point = (
+                    time_period_hours * 60
+                ) / EXPECTED_INTERVAL_MINUTES
+                point_completeness_scores = []
+                point_accuracy_scores = []
+                point_freshness_scores = []
+                point_consistency_scores = []
+                point_overall_scores = []
+                point_quality_data = []
+                points_with_recent_data = 0
+                all_intervals = []
+                for point in device_points:
+                    actual_readings, completeness_score = calculate_completeness_score(
+                        point, expected_reading_per_point
+                    )
+                    point_completeness_scores.append(completeness_score)
+                    if actual_readings > 0:
+                        points_with_recent_data += 1
+                    outliers, accuracy_score = calculate_accuracy_score(point)
+                    point_accuracy_scores.append(accuracy_score)
+                    latest_reading, freshness_score = calculate_freshness_score(point)
+                    point_freshness_scores.append(freshness_score)
+                    consistency_score = calculate_consistency_score(point)
+                    point_consistency_scores.append(consistency_score)
+
+                    readings = BACnetReading.objects.filter(
+                        point=point, read_time__gte=timezone.now() - timedelta(hours=24)
+                    ).order_by("read_time")
+
+                    if len(readings) > 1:
+                        for i in range(1, len(readings)):
+                            interval_minutes = (
+                                readings[i].read_time - readings[i - 1].read_time
+                            ).total_seconds() / 60
+                            all_intervals.append(interval_minutes)
+
+                    overall_score = (
+                        completeness_score * 0.4
+                        + accuracy_score * 0.3
+                        + freshness_score * 0.2
+                        + consistency_score * 0.1
+                    )
+                    point_overall_scores.append(overall_score)
+                    point_quality_data.append(
+                        {
+                            "point_identifier": (
+                                f"{point.object_type}:{point.instance_number}"
+                            ),
+                            "total_readings": actual_readings,
+                            "missing_readings": max(
+                                0, expected_reading_per_point - actual_readings
+                            ),
+                            "outlier_count": (
+                                len(outliers) if "outliers" in locals() else 0
+                            ),
+                            "last_reading_time": (
+                                latest_reading.read_time if latest_reading else None
+                            ),
+                            "data_gaps_hours": 0,
+                            "quality_score": overall_score,
+                        }
+                    )
+
+                total_device_points = len(device_points)
+                coverage = (
+                    (points_with_recent_data / total_device_points * 100)
+                    if total_device_points > 0
+                    else 0
+                )
+                avg_interval = (
+                    sum(all_intervals) / len(all_intervals) if all_intervals else None
+                )
+
+                devices_quality.append(
+                    {
+                        "device_id": device.id,
+                        "address": device.address,
+                        "metrics": {
+                            "completeness_score": (
+                                sum(point_completeness_scores)
+                                / len(point_completeness_scores)
+                                if point_completeness_scores
+                                else 0
+                            ),
+                            "accuracy_score": (
+                                sum(point_accuracy_scores) / len(point_accuracy_scores)
+                                if point_accuracy_scores
+                                else 0
+                            ),
+                            "freshness_score": (
+                                sum(point_freshness_scores)
+                                / len(point_freshness_scores)
+                                if point_freshness_scores
+                                else 0
+                            ),
+                            "consistency_score": (
+                                sum(point_consistency_scores)
+                                / len(point_consistency_scores)
+                                if point_consistency_scores
+                                else 0
+                            ),
+                            "overall_quality_score": (
+                                sum(point_overall_scores) / len(point_overall_scores)
+                                if point_overall_scores
+                                else 0
+                            ),
+                        },
+                        "point_quality": point_quality_data,
+                        "data_coverage_percentage": coverage,
+                        "avg_reading_interval_minutes": avg_interval,
+                    }
+                )
+
+            if devices_quality:
+                num_devices = len(devices_quality)
+                summary_completeness = (
+                    sum(d["metrics"]["completeness_score"] for d in devices_quality)
+                    / num_devices
+                )
+                summary_accuracy_score = (
+                    sum(d["metrics"]["accuracy_score"] for d in devices_quality)
+                    / num_devices
+                )
+                summary_freshness_score = (
+                    sum(d["metrics"]["freshness_score"] for d in devices_quality)
+                    / num_devices
+                )
+                summary_consistency_score = (
+                    sum(d["metrics"]["consistency_score"] for d in devices_quality)
+                    / num_devices
+                )
+                summary_overall_quality_score = (
+                    sum(d["metrics"]["overall_quality_score"] for d in devices_quality)
+                    / num_devices
+                )
+            else:
+                summary_completeness = summary_accuracy_score = (
+                    summary_freshness_score
+                ) = summary_consistency_score = summary_overall_quality_score = 0
+
+            return Response(
+                {
+                    "success": True,
+                    "summary": {
+                        "completeness_score": summary_completeness,
+                        "accuracy_score": summary_accuracy_score,
+                        "freshness_score": summary_freshness_score,
+                        "consistency_score": summary_consistency_score,
+                        "overall_score": summary_overall_quality_score,
+                    },
+                    "devices": devices_quality,
+                    "timestamp": timezone.now(),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
