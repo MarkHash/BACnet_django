@@ -14,7 +14,7 @@ sqlalchemy
 
 # BACnet Protocol & Networking
 BAC0==23.7.3
-netifaces>=0.11.0
+netifaces>=0.11.0; sys_platform != "win32"
 pyasyncore==1.0.4
 
 # Background Tasks & Caching
@@ -66,7 +66,6 @@ nodeenv==1.9.1
 virtualenv==20.34.0
 
 # API & Web Framework Extensions
-djangorestframework==3.15.2
 django-ratelimit==4.1.0
 django-cors-headers==4.3.1
 drf-spectacular==0.27.0

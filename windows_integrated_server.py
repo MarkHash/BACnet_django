@@ -40,11 +40,17 @@ import sys
 import threading
 import time
 
-import django
-from django.core.management import execute_from_command_line
-from django.db import connection
+# Configure Django settings before importing models
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bacnet_project.settings")
 
-from discovery.services import BACnetService
+import django  # noqa: E402
+
+django.setup()
+
+from django.core.management import execute_from_command_line  # noqa: E402
+from django.db import connection  # noqa: E402
+
+from discovery.services import BACnetService  # noqa: E402
 
 DISCOVERY_INTERVAL = 1800  # 30 minutes
 READINGS_INTERVAL = 300  # 5 minutes

@@ -104,7 +104,7 @@ pip install -r requirements.txt
 
 ### 4. Start Docker infrastructure
 ```bash
-docker-compose -f docker-compose.windows.yml up -d
+docker-compose -f docker-compose.windows.yml up -d --build
 ```
 This starts PostgreSQL, Redis, and Celery workers in Docker containers.
 
