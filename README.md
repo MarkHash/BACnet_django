@@ -31,6 +31,30 @@ A Django web application for discovering, monitoring, and reading BACnet devices
 - Point lists organized by object type
 - Bulk sensor value reading
 
+## Recent Improvements
+
+### 🔧 **Windows Compatibility Fixes (Sept 2025)**
+- **Fixed localhost binding issue**: Updated all documentation examples from `localhost:8000` to `127.0.0.1:8000` for Windows compatibility
+- **Fixed IPv6/IPv4 resolution conflicts**: Resolved empty response errors when using `localhost` on Windows systems
+- **Enhanced Docker configuration**: Proper Windows detection using `docker-compose.windows.yml` with `HOST_OS=Windows` environment variable
+- **Eliminated server conflicts**: Windows integrated server now properly coordinates with Docker infrastructure
+
+### 📊 **API Data Quality Improvements**
+- **Fixed numpy data type errors**: Enhanced `DataQualityAPIView` to handle mixed numeric/text BACnet readings safely
+- **Improved error handling**: Added robust filtering for non-numeric values in statistical calculations
+- **Better data validation**: Prevents crashes when processing BACnet readings containing status text like "inactive", "offline"
+
+### 🚀 **Performance & Architecture**
+- **Optimized Windows architecture**: Windows integrated server handles BACnet operations while Docker provides database infrastructure
+- **Improved API testing**: Native PowerShell `Invoke-RestMethod` examples for better Windows integration
+- **Enhanced documentation**: All examples now use working URLs and proper Windows-specific configurations
+
+### ✅ **Verified Working Features**
+- DevicePerformanceAPIView: Real-time device performance metrics with 100% uptime tracking
+- DataQualityAPIView: Comprehensive data quality analysis with accuracy, freshness, and consistency scoring
+- POST endpoints: Device discovery and data collection operations working reliably
+- Interactive API documentation: Swagger UI accessible at `http://127.0.0.1:8000/api/docs/`
+
 ## Requirements
 
 - Python 3.12+
@@ -81,7 +105,7 @@ cd BACnet_django
 docker-compose up -d
 ```
 
-That's it! The application will be available at http://localhost:8000
+That's it! The application will be available at http://127.0.0.1:8000
 
 ### Windows Installation (Integrated Server)
 
@@ -120,8 +144,8 @@ That's it! The integrated server combines:
 - ✅ **Full database connectivity** (connects to Docker PostgreSQL)
 
 ### 6. Access the application
-- Web Interface: http://localhost:8000/
-- Admin Interface: http://localhost:8000/admin/
+- Web Interface: http://127.0.0.1:8000/
+- Admin Interface: http://127.0.0.1:8000/admin/
 
 ## How the Windows Integrated Server Works
 
@@ -254,16 +278,33 @@ The application provides both legacy and modern REST API endpoints:
 **Example Usage:**
 ```bash
 # Get all device status
-curl "http://localhost:8000/api/v2/devices/status/"
+curl "http://127.0.0.1:8000/api/v2/devices/status/"
 
 # Get 24-hour trends for specific device
-curl "http://localhost:8000/api/v2/devices/123/trends/?period=24hours"
+curl "http://127.0.0.1:8000/api/v2/devices/123/trends/?period=24hours"
 
 # Get trends for specific points only
-curl "http://localhost:8000/api/v2/devices/123/trends/?period=7days&points=analogInput:100,analogInput:101"
+curl "http://127.0.0.1:8000/api/v2/devices/123/trends/?period=7days&points=analogInput:100,analogInput:101"
 
 # PowerShell example with JSON formatting
-Invoke-RestMethod -Uri "http://localhost:8000/api/v2/devices/2000/trends?period=24hours" -Method GET | ConvertTo-Json -Depth 10
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v2/devices/2000/trends?period=24hours" -Method GET | ConvertTo-Json -Depth 10
+```
+
+**Windows PowerShell Testing (Recommended):**
+```powershell
+# Test all main API endpoints
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v2/devices/status/" -Method GET
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v2/devices/performance/" -Method GET
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v2/devices/data-quality/" -Method GET
+
+# Test POST endpoints
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/start-discovery/" -Method POST
+
+# Get formatted JSON output
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v2/devices/performance/" -Method GET | ConvertTo-Json -Depth 5
+
+# Check API health
+(Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v2/devices/status/" -Method GET).success
 ```
 
 **Response Size Guidelines:**
@@ -272,11 +313,12 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/v2/devices/2000/trends?period=
 - `7days`: ~533KB (use with caution, consider pagination)
 - For frontend: Recommend 24-hour default with optional historical data
 
+```bash
 # Get device performance analytics
-curl "http://localhost:8000/api/v2/devices/performance/"
+curl "http://127.0.0.1:8000/api/v2/devices/performance/"
 
 # Get data quality analysis for all devices
-curl "http://localhost:8000/api/v2/devices/data-quality/"
+curl "http://127.0.0.1:8000/api/v2/devices/data-quality/"
 ```
 
 **Device Performance API Response:**
@@ -455,6 +497,21 @@ curl "http://localhost:8000/api/v2/devices/data-quality/"
 3. **Docker port conflicts**
    - Make sure you're using `docker-compose.windows.yml`
    - Don't run both `docker-compose.yml` and `docker-compose.windows.yml` simultaneously
+
+4. **"Empty reply from server" or "localhost:8000 not working"** ✅ **FIXED**
+   - **Solution**: Use `127.0.0.1:8000` instead of `localhost:8000`
+   - **Root cause**: Windows resolves `localhost` to IPv6 (`::1`) but server binds to IPv4 only
+   - **All documentation updated**: Examples now use `127.0.0.1:8000`
+
+5. **"net::ERR_EMPTY_RESPONSE" on API calls** ✅ **FIXED**
+   - **Solution**: Ensure Windows integrated server is running: `python windows_integrated_server.py`
+   - **Solution**: Use correct docker-compose file: `docker-compose -f docker-compose.windows.yml up -d`
+   - **Verification**: Check API works with `Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v2/devices/status/"`
+
+6. **DataQualityAPIView numpy errors** ✅ **FIXED**
+   - **Error**: `ufunc 'subtract' did not contain a loop with signature matching types`
+   - **Solution**: Enhanced data filtering to handle mixed numeric/text BACnet readings
+   - **Now handles**: "inactive", "offline", and other status text values safely
 
 #### Linux/Mac-Specific Issues
 

@@ -817,15 +817,24 @@ def calculate_accuracy_score(point):
     readings_values = BACnetReading.objects.filter(
         point=point, read_time__gte=timezone.now() - timedelta(hours=24)
     ).values_list("value", flat=True)
-    if len(readings_values) > 4:
-        q1 = np.percentile(readings_values, 25)
-        q3 = np.percentile(readings_values, 75)
+
+    # Filter out non-numeric values
+    numeric_values = []
+    for value in readings_values:
+        try:
+            numeric_values.append(float(value))
+        except (ValueError, TypeError):
+            continue
+
+    if len(numeric_values) > 4:
+        q1 = np.percentile(numeric_values, 25)
+        q3 = np.percentile(numeric_values, 75)
         iqr = q3 - q1
         lower_bound = q1 - (1.5 * iqr)
         upper_bound = q3 + (1.5 * iqr)
 
-        outliers = [v for v in readings_values if v < lower_bound or v > upper_bound]
-        accuracy_score = max(0, (1 - len(outliers) / len(readings_values)) * 100)
+        outliers = [v for v in numeric_values if v < lower_bound or v > upper_bound]
+        accuracy_score = max(0, (1 - len(outliers) / len(numeric_values)) * 100)
     else:
         accuracy_score = 100
 
