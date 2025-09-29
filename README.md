@@ -246,6 +246,8 @@ The application provides both legacy and modern REST API endpoints:
 - Consistent error handling with detailed responses
 - Rate limiting (200/h for status, 100/h for trends)
 - Query parameters for flexible data filtering
+- Mixed data type support (numeric and text values handled safely)
+- Robust statistics calculation excluding non-numeric values
 
 **Example Usage:**
 ```bash
@@ -257,7 +259,16 @@ curl "http://localhost:8000/api/v2/devices/123/trends/?period=24hours"
 
 # Get trends for specific points only
 curl "http://localhost:8000/api/v2/devices/123/trends/?period=7days&points=analogInput:100,analogInput:101"
+
+# PowerShell example with JSON formatting
+Invoke-RestMethod -Uri "http://localhost:8000/api/v2/devices/2000/trends?period=24hours" -Method GET | ConvertTo-Json -Depth 10
 ```
+
+**Response Size Guidelines:**
+- `1hour`: ~11KB (ideal for real-time dashboards)
+- `24hours`: ~338KB (good for daily views)
+- `7days`: ~533KB (use with caution, consider pagination)
+- For frontend: Recommend 24-hour default with optional historical data
 
 ### Legacy API (v1) - Function-based
 - `POST /api/start-discovery/` - Start device discovery

@@ -25,7 +25,7 @@ abstracting service layer complexity into user-friendly endpoints.
 import logging
 from datetime import timedelta
 
-from django.db.models import Avg, Count, FloatField, Max, Min
+from django.db.models import Avg, Count, FloatField, Max, Min, Q
 from django.db.models.functions import Cast
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -592,6 +592,15 @@ class DeviceTrendsAPIView(APIView):
     Get historical trends for device points
     """
 
+    def _safe_float_conversion(self, value):
+        """Safely convert value to float, return None for non-numeric values"""
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
+
     @extend_schema(
         summary="Get device trends",
         description=(
@@ -636,7 +645,19 @@ class DeviceTrendsAPIView(APIView):
 
             for point in points:
                 readings = point.readings.filter(read_time__gte=start_time)
-                stats = readings.aggregate(
+
+                # Filter readings to only include numeric values for statistics
+                numeric_readings = readings.exclude(
+                    Q(value__isnull=True)
+                    | Q(value__regex=r"^[^0-9\-\+\.]")
+                    | Q(  # Exclude values starting with non-numeric chars
+                        value__iexact="inactive"
+                    )
+                    | Q(value__iexact="offline")  # Explicitly exclude "inactive"
+                    | Q(value__iexact="error")  # And other common text statuses
+                )
+
+                stats = numeric_readings.aggregate(
                     min_value=Min(Cast("value", FloatField())),
                     max_value=Max(Cast("value", FloatField())),
                     avg_value=Avg(Cast("value", FloatField())),
@@ -648,7 +669,7 @@ class DeviceTrendsAPIView(APIView):
                         "readings": [
                             {
                                 "timestamp": r.read_time.isoformat(),
-                                "value": float(r.value) if r.value else None,
+                                "value": self._safe_float_conversion(r.value),
                             }
                             for r in readings.order_by("read_time")
                         ],
