@@ -49,6 +49,8 @@ from .exceptions import (
 )
 from .models import BACnetDevice, BACnetPoint, BACnetReading
 from .serializers import (
+    AnomalyReadingSerializer,
+    AnomalyStatsSerializer,
     DataQualityResponseSerializer,
     DevicePerformanceResponseSerializer,
     DeviceStatusResponseSerializer,
@@ -876,9 +878,6 @@ def calculate_consistency_score(point):
     return consistency_score
 
 
-# def calculate_point_quality_metrics(point, expected_reading_per_point):
-
-
 class DataQualityAPIView(APIView):
     @extend_schema(
         summary="Get data quality metrics for all devices",
@@ -1058,4 +1057,202 @@ class DataQualityAPIView(APIView):
             return Response(
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class AnomalyListAPIView(APIView):
+    @extend_schema(
+        summary="List recent anomalies with filtering",
+        description="Retrieve anomaly readings with optional filtering by time range, "
+        "device, and anomaly status. Supports pagination and includes device context.",
+        parameters=[
+            OpenApiParameter(
+                "hours", int, description="Time range in hours (default: 24)"
+            ),
+            OpenApiParameter(
+                "device_id", int, description="Filter by specific device ID"
+            ),
+            OpenApiParameter(
+                "anomalies_only", bool, description="Show only anomalous readings"
+            ),
+            OpenApiParameter(
+                "limit", int, description="Maximum number of results (default: 100)"
+            ),
+        ],
+        responses={200: AnomalyReadingSerializer(many=True)},
+    )
+    def get(self, request):
+        try:
+            hours = int(request.GET.get("hours", 24))
+            device_id = request.GET.get("device_id")
+            anomalies_only = (
+                request.GET.get("anomalies_only", "false").lower() == "true"
+            )
+            limit = int(request.GET.get("limit", 100))
+
+            time_threshold = timezone.now() - timedelta(hours=hours)
+            queryset = (
+                BACnetReading.objects.filter(read_time__gte=time_threshold)
+                .select_related("point__device")
+                .order_by("-read_time")
+            )
+
+            if device_id:
+                queryset = queryset.filter(point__device__device_id=device_id)
+            if anomalies_only:
+                queryset = queryset.filter(is_anomaly=True)
+
+            readings = queryset[:limit]
+            serializer = AnomalyReadingSerializer(readings, many=True)
+
+            return Response(
+                {
+                    "success": True,
+                    "count": len(readings),
+                    "filters": {
+                        "hours": hours,
+                        "device_id": device_id,
+                        "anomalies_only": anomalies_only,
+                        "limit": limit,
+                    },
+                    "data": serializer.data,
+                    "timestamp": timezone.now(),
+                }
+            )
+
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e), "timestamp": timezone.now()},
+                status=500,
+            )
+
+
+class DeviceAnomalyAPIView(APIView):
+    @extend_schema(
+        summary="Get anomalies for specific device",
+        description="Retrieve anomaly readings and statistics for a specific device",
+        parameters=[
+            OpenApiParameter(
+                "hours", int, description="Time range in hours (default: 24)"
+            ),
+            OpenApiParameter(
+                "anomalies_only", bool, description="Show only anomalous readings"
+            ),
+            OpenApiParameter(
+                "limit", int, description="Maximum number of results (default: 100)"
+            ),
+        ],
+        responses={200: AnomalyReadingSerializer(many=True)},
+    )
+    def get(self, request, device_id):
+        try:
+            hours = int(request.GET.get("hours", 24))
+            anomalies_only = (
+                request.GET.get("anomalies_only", "false").lower() == "true"
+            )
+            limit = int(request.GET.get("limit", 100))
+
+            time_threshold = timezone.now() - timedelta(hours=hours)
+            queryset = (
+                BACnetReading.objects.filter(
+                    read_time__gte=time_threshold, point__device__device_id=device_id
+                )
+                .select_related("point__device")
+                .order_by("-read_time")
+            )
+
+            if anomalies_only:
+                queryset = queryset.filter(is_anomaly=True)
+
+            readings = queryset[:limit]
+            serializer = AnomalyReadingSerializer(readings, many=True)
+
+            return Response(
+                {
+                    "success": True,
+                    "count": len(readings),
+                    "filters": {
+                        "hours": hours,
+                        "device_id": device_id,
+                        "anomalies_only": anomalies_only,
+                        "limit": limit,
+                    },
+                    "data": serializer.data,
+                    "timestamp": timezone.now(),
+                }
+            )
+
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e), "timestamp": timezone.now()},
+                status=500,
+            )
+
+
+class AnomalyStatsAPIView(APIView):
+    @extend_schema(
+        summary="Get system-wide anomaly statistics",
+        description=(
+            "Retrieve comprehensive anomaly statistics including counts, "
+            "rates, and top affected devices"
+        ),
+        parameters=[
+            OpenApiParameter(
+                "days",
+                int,
+                description="Time range in days for statistics (default: 7)",
+            ),
+        ],
+        responses={200: AnomalyStatsSerializer},
+    )
+    def get(self, request):
+        try:
+            days = int(request.GET.get("days", 7))
+
+            time_threshold = timezone.now() - timedelta(days=days)
+            today_threshold = timezone.now() - timedelta(days=1)
+
+            total_anomalies = BACnetReading.objects.filter(
+                read_time__gte=time_threshold, is_anomaly=True
+            ).count()
+
+            anomalies_today = BACnetReading.objects.filter(
+                read_time__gte=today_threshold, is_anomaly=True
+            ).count()
+
+            total_readings = BACnetReading.objects.filter(
+                read_time__gte=time_threshold
+            ).count()
+
+            anomaly_rate = (
+                (total_anomalies / total_readings * 100) if total_readings > 0 else 0
+            )
+
+            top_anomaly_devices = (
+                BACnetReading.objects.filter(
+                    read_time__gte=time_threshold, is_anomaly=True
+                )
+                .values("point__device__device_id", "point__device__address")
+                .annotate(anomaly_count=Count("id"))
+                .order_by("-anomaly_count")[:5]
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "period_days": days,
+                    "data": {
+                        "total_anomalies": total_anomalies,
+                        "anomalies_today": anomalies_today,
+                        "top_anomalies_devices": list(top_anomaly_devices),
+                        "anomaly_rate": round(anomaly_rate, 2),
+                    },
+                    "timestamp": timezone.now(),
+                }
+            )
+
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e), "timestamp": timezone.now()},
+                status=500,
             )

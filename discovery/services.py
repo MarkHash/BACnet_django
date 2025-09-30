@@ -420,11 +420,15 @@ class BACnetService:
         ):
             try:
                 numeric_value = float(value_str)
-                anomaly_score = self.anomaly_detector.detect_z_score_anomaly(
+                z_score = self.anomaly_detector.detect_z_score_anomaly(
                     point, numeric_value
                 )
-                is_anomaly = anomaly_score > self.anomaly_detector.z_score_threshold
-                return anomaly_score, is_anomaly
+                z_is_anomaly = z_score > self.anomaly_detector.z_score_threshold
+                iqr_score, iqr_is_anomaly = self.anomaly_detector.detect_iqr_anomaly(
+                    point, numeric_value
+                )
+                combined_is_anomaly = z_is_anomaly or iqr_is_anomaly
+                return z_score, iqr_score, combined_is_anomaly
             except (ValueError, TypeError):
                 pass
         return None, False
@@ -438,13 +442,13 @@ class BACnetService:
             self._log(f"📖 Reading {point.identifier}")
             value = self.bacnet.read(read_string)
             if value is not None:
-                anomaly_score, is_anomaly = self._detect_anomaly_if_temperature(
+                z_score, iqr_score, is_anomaly = self._detect_anomaly_if_temperature(
                     point, str(value)
                 )
                 BACnetReading.objects.create(
                     point=point,
                     value=str(value),
-                    anomaly_score=anomaly_score,
+                    anomaly_score=z_score,
                     is_anomaly=is_anomaly,
                     read_time=timezone.now(),
                 )
@@ -506,13 +510,13 @@ class BACnetService:
                 value_index += 2
 
             if present_value is not None:
-                anomaly_score, is_anomaly = self._detect_anomaly_if_temperature(
+                z_score, iqr_score, is_anomaly = self._detect_anomaly_if_temperature(
                     point, str(present_value)
                 )
                 BACnetReading.objects.create(
                     point=point,
                     value=str(present_value),
-                    anomaly_score=anomaly_score,
+                    anomaly_score=z_score,
                     is_anomaly=is_anomaly,
                     read_time=timezone.now(),
                 )

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from .models import BACnetReading
+
 
 class DeviceStatusSerializer(serializers.Serializer):
     device_id = serializers.IntegerField()
@@ -89,3 +91,39 @@ class DataQualityResponseSerializer(serializers.Serializer):
     summary = DataQualityMetricsSerializer()
     devices = DeviceDataQualitySerializer(many=True)
     timestamp = serializers.DateTimeField()
+
+
+class AnomalyReadingSerializer(serializers.ModelSerializer):
+    device_id = serializers.CharField(source="point.device.device_id")
+    device_address = serializers.CharField(source="point.device.address")
+    point_identifier = serializers.CharField(source="point.identifier")
+    point_units = serializers.CharField(source="point.units")
+
+    class Meta:
+        model = BACnetReading
+        fields = [
+            "id",
+            "device_id",
+            "device_address",
+            "point_identifier",
+            "point_units",
+            "value",
+            "anomaly_score",
+            "is_anomaly",
+            "read_time",
+        ]
+
+
+class AnomalyStatsSerializer(serializers.Serializer):
+    total_anomalies = serializers.IntegerField()
+    anomalies_today = serializers.IntegerField()
+    top_anomaly_devices = serializers.ListField()
+    anomaly_rate = serializers.FloatField()
+
+
+class DeviceAnomalySerializer(serializers.Serializer):
+    device_id = serializers.IntegerField()
+    device_address = serializers.CharField()
+    anomaly_count = serializers.IntegerField()
+    latest_anomaly = serializers.DateTimeField()
+    anomaly_rate = serializers.FloatField()

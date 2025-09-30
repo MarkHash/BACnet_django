@@ -19,7 +19,10 @@ from django.urls import path
 
 from . import views
 from .views import (
+    AnomalyListAPIView,
+    AnomalyStatsAPIView,
     DataQualityAPIView,
+    DeviceAnomalyAPIView,
     DevicePerformanceAPIView,
     DeviceStatusAPIView,
     DeviceTrendsAPIView,
@@ -77,5 +80,20 @@ urlpatterns = [
         "api/v2/devices/data-quality/",
         DataQualityAPIView.as_view(),
         name="device-data-quality-api",
+    ),
+    path(
+        "api/v2/anomalies/",
+        AnomalyListAPIView.as_view(),
+        name="anomaly-list-api",
+    ),
+    path(
+        "api/v2/anomalies/devices/<int:device_id>/",
+        DeviceAnomalyAPIView.as_view(),
+        name="device-anomaly-api",
+    ),
+    path(
+        "api/v2/anomalies/stats/",
+        AnomalyStatsAPIView.as_view(),
+        name="anomaly-stats-api",
     ),
 ]

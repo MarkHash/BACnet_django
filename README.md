@@ -134,6 +134,8 @@ docker-compose -f docker-compose.windows.yml up -d --build
 ```
 This starts PostgreSQL, Redis, and Celery workers in Docker containers.
 
+**⚠️ Important**: If you have local PostgreSQL installed, it may conflict with Docker PostgreSQL on port 5432. See [PostgreSQL Database Conflicts](#postgresql-database-conflicts) in Troubleshooting if data isn't being saved.
+
 ### 5. Run the integrated server
 ```bash
 python windows_integrated_server.py
@@ -485,19 +487,25 @@ The application includes real-time anomaly detection for temperature sensors usi
 
 ### Features
 
+- **Ensemble Detection**: Z-score + IQR methods working together for robust anomaly detection
 - **Z-Score Detection**: Statistical anomaly detection using standard deviation analysis
+- **IQR Detection**: Interquartile Range method resistant to outliers
 - **Temperature Sensor Focus**: Automatically detects and analyzes temperature readings (°C, °F)
 - **Real-time Processing**: Anomaly detection runs during data collection
 - **Historical Analysis**: Uses 24-hour rolling window for statistical baseline
+- **Data Filtering**: Automatic exclusion of invalid readings (0.0°C values)
 - **Configurable Thresholds**: Adjustable Z-score threshold (default: 2.5 standard deviations)
 
 ### How It Works
 
 1. **Automatic Detection**: Temperature sensors identified by units containing "degree"
-2. **Statistical Analysis**: Each new reading compared against 24-hour historical data
-3. **Z-Score Calculation**: `z_score = |new_value - mean| / std_deviation`
-4. **Anomaly Flagging**: Readings with Z-score > threshold marked as anomalous
-5. **Database Storage**: Anomaly scores and flags stored with each reading
+2. **Data Filtering**: Invalid readings (0.0°C) excluded from statistical analysis
+3. **Historical Analysis**: Each new reading compared against 24-hour historical data
+4. **Ensemble Detection**:
+   - **Z-Score**: `z_score = |new_value - mean| / std_deviation`
+   - **IQR**: Detects outliers using quartile ranges (Q1, Q3)
+5. **Anomaly Flagging**: Reading flagged if EITHER method detects anomaly
+6. **Database Storage**: Z-score and anomaly flag stored with each reading
 
 ### Implementation Details
 
@@ -508,8 +516,19 @@ class AnomalyDetector:
         self.z_score_threshold = z_score_threshold
 
     def detect_z_score_anomaly(self, point, new_value):
-        # Analyzes 24-hour historical data
-        # Returns anomaly score (0.0 if insufficient data)
+        # Z-score statistical analysis
+        # Returns z_score value
+
+    def detect_iqr_anomaly(self, point, new_value):
+        # IQR outlier detection
+        # Returns (iqr_score, is_anomaly)
+
+# Ensemble detection in services.py
+def _detect_anomaly_if_temperature(self, point, value_str):
+    z_score = self.anomaly_detector.detect_z_score_anomaly(point, numeric_value)
+    iqr_score, iqr_is_anomaly = self.anomaly_detector.detect_iqr_anomaly(point, numeric_value)
+    combined_is_anomaly = (z_score > threshold) or iqr_is_anomaly
+    return z_score, iqr_score, combined_is_anomaly
 ```
 
 ### Integration Points
@@ -522,23 +541,31 @@ class AnomalyDetector:
 ### Current Status
 
 **✅ Active Features:**
-- Z-score anomaly detection for temperature sensors
-- Real-time processing during data collection
-- Database storage of anomaly scores and flags
-- 79 temperature sensors detected and monitored
+- **Ensemble Anomaly Detection**: Z-score + IQR methods working together for robust detection
+- **Data Filtering**: Automatic exclusion of 0.0°C readings from statistical analysis
+- **Real-time Processing**: Anomaly detection during data collection with ensemble scoring
+- **Comprehensive API Suite**: REST endpoints for anomaly querying and statistics
+- **Database Storage**: Anomaly scores and flags stored with each reading
+- **106k+ Historical Readings**: Migrated with anomaly data for analysis
 
-**📊 Test Results:**
-- Successfully integrated with data collection pipeline
-- Anomaly scores calculated for temperature readings
-- Zero scores indicate insufficient data variation (expected behavior)
-- System correctly filters non-numeric values
+**📊 Recent Achievements (Sept 2025):**
+- **Database Migration Success**: 106k readings with 34k+ anomaly scores migrated to Docker PostgreSQL
+- **Ensemble Detection**: Z-score + IQR methods provide complementary anomaly detection
+- **API Endpoints**: Complete REST API suite for anomaly data access
+- **Production Testing**: Comprehensive test framework with multiple detection scenarios
+- **Database Connectivity**: Resolved PostgreSQL conflicts between local and Docker instances
+
+**🚀 API Endpoints Available:**
+- `GET /api/v2/anomalies/` - List all anomalies with filtering
+- `GET /api/v2/anomalies/devices/{id}/` - Device-specific anomaly data
+- `GET /api/v2/anomalies/stats/` - System-wide anomaly statistics
+- **OpenAPI Documentation**: Available at `/api/docs/` with Swagger UI
 
 **🔄 Planned Enhancements:**
-- IQR (Interquartile Range) method for robust outlier detection
 - Moving Average detection for trend analysis
-- API endpoints for anomaly data queries
-- Alert system integration
-- Enhanced filtering for inactive sensors (0.0°C readings)
+- Isolation Forest ML method for advanced detection
+- Alert system integration with AlarmHistory model
+- Dashboard views for anomaly visualization
 
 ### Configuration
 
@@ -574,6 +601,33 @@ temp_sensors = BACnetPoint.objects.filter(
 )
 ```
 
+### API Usage Examples
+
+```bash
+# Get all anomalies from last 24 hours
+curl "http://localhost:8000/api/v2/anomalies/?anomalies_only=true"
+
+# Get anomalies for specific device
+curl "http://localhost:8000/api/v2/anomalies/devices/2000/?anomalies_only=true"
+
+# Get system-wide anomaly statistics
+curl "http://localhost:8000/api/v2/anomalies/stats/"
+
+# Get anomaly statistics for last 30 days
+curl "http://localhost:8000/api/v2/anomalies/stats/?days=30"
+```
+
+### Test Framework
+
+```bash
+# Run comprehensive anomaly detection tests
+python test_anomaly_detection.py
+
+# Example output:
+# Normal reading  |   29.0°C | Z-score:   0.55 | IQR:   0.31 | ✅ Normal
+# High anomaly    |   45.0°C | Z-score:  16.36 | IQR:   6.46 | 🚨 ANOMALY
+```
+
 ## Troubleshooting
 
 ### Platform-Specific Issues
@@ -595,6 +649,22 @@ temp_sensors = BACnetPoint.objects.filter(
 3. **Docker port conflicts**
    - Make sure you're using `docker-compose.windows.yml`
    - Don't run both `docker-compose.yml` and `docker-compose.windows.yml` simultaneously
+
+**🗄️ PostgreSQL Database Conflicts**
+   - **Issue**: Windows service can't save data to Docker database
+   - **Cause**: Local PostgreSQL service using port 5432 (conflicts with Docker PostgreSQL)
+   - **Check**: `netstat -an | findstr ":5432"` (should show only Docker connections)
+   - **Solution**: Stop local PostgreSQL service:
+     ```bash
+     # As Administrator:
+     net stop postgresql-x64-15
+     # Or use Services Manager (services.msc)
+     ```
+   - **Verification**: Test database connection:
+     ```bash
+     psql -h localhost -U bacnet_user -d bacnet_django -c "SELECT 1;"
+     ```
+   - **Note**: New machines without local PostgreSQL work immediately
 
 4. **"Empty reply from server" or "localhost:8000 not working"** ✅ **FIXED**
    - **Solution**: Use `127.0.0.1:8000` instead of `localhost:8000`
