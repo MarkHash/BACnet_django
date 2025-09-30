@@ -35,7 +35,13 @@ from .exceptions import (
     BACnetServiceError,
 )
 from .ml_utils import AnomalyDetector
-from .models import BACnetDevice, BACnetPoint, BACnetReading, DeviceStatusHistory
+from .models import (
+    AlarmHistory,
+    BACnetDevice,
+    BACnetPoint,
+    BACnetReading,
+    DeviceStatusHistory,
+)
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(name)s = %(levelname)s - %(message)s"
@@ -433,6 +439,46 @@ class BACnetService:
                 pass
         return None, False
 
+    def _create_reading_with_alarm_check(
+        self, point, value, z_score, iqr_score, is_anomaly
+    ):
+        """
+        Create a BACnetReading and optionally create an AlarmHistory
+        if anomaly detected.
+
+        Args:
+            point: BACnetPoint instance
+            value: Reading value (string)
+            z_score: Anomaly Z-score (float or None)
+            iqr_score: IQR score (float or None)
+            is_anomaly: Boolean indicating if this is an anomaly
+        """
+
+        combined_score = max(z_score or 0, iqr_score or 0)
+
+        BACnetReading.objects.create(
+            point=point,
+            value=str(value),
+            anomaly_score=combined_score,
+            is_anomaly=is_anomaly,
+            read_time=timezone.now(),
+        )
+
+        if is_anomaly:
+            AlarmHistory.objects.create(
+                device=point.device,
+                point=point,
+                alarm_type="anomaly_detected",
+                severity="medium" if z_score < 5.0 else "high",
+                triggered_value=str(value),
+                threshold_value=f"{combined_score:.2f}",
+                message=(
+                    f"Anomaly detected: {point.identifier} = {value} "
+                    f"(Z-score: {z_score:.2f}, IQR: {iqr_score:.2f})"
+                ),
+                triggered_at=timezone.now(),
+            )
+
     def _read_single_point(self, device, point, results):
         try:
             read_string = (
@@ -445,14 +491,11 @@ class BACnetService:
                 z_score, iqr_score, is_anomaly = self._detect_anomaly_if_temperature(
                     point, str(value)
                 )
-                BACnetReading.objects.create(
-                    point=point,
-                    value=str(value),
-                    anomaly_score=z_score,
-                    is_anomaly=is_anomaly,
-                    read_time=timezone.now(),
+                self._create_reading_with_alarm_check(
+                    point, value, z_score, iqr_score, is_anomaly
                 )
                 results["readings_collected"] += 1
+
         except Exception as e:
             self._log(f"❌ Failed to read {point.identifier}: {e}")
 
@@ -513,13 +556,11 @@ class BACnetService:
                 z_score, iqr_score, is_anomaly = self._detect_anomaly_if_temperature(
                     point, str(present_value)
                 )
-                BACnetReading.objects.create(
-                    point=point,
-                    value=str(present_value),
-                    anomaly_score=z_score,
-                    is_anomaly=is_anomaly,
-                    read_time=timezone.now(),
+
+                self._create_reading_with_alarm_check(
+                    point, present_value, z_score, iqr_score, is_anomaly
                 )
+
                 point.present_value = str(present_value)
                 if object_name:
                     point.object_name = str(object_name)
