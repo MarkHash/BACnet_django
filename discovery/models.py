@@ -374,3 +374,43 @@ class MaintenanceLog(models.Model):
         if notes:
             self.technician_notes = notes
         self.save()
+
+
+class EnergyMetrics(models.Model):
+    """Daily energy analytics and metrics for BACnet devices"""
+
+    date = models.DateField(help_text="Date for which metrics are calculated")
+    device = models.ForeignKey(BACnetDevice, on_delete=models.CASCADE)
+
+    avg_temperature = models.FloatField()
+    min_temperature = models.FloatField()
+    max_temperature = models.FloatField()
+    temperature_variance = models.FloatField()
+
+    estimated_hvac_load = models.FloatField(help_text="kWh estimated")
+    peak_demand_hour = models.IntegerField(null=True, blank=True)
+    efficiency_score = models.FloatField(null=True, blank=True)
+
+    predicted_next_day_load = models.FloatField(null=True, blank=True)
+    confidence_score = models.FloatField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["date", "device"]
+
+
+class BuildingEnergyForecast(models.Model):
+    forecast_date = models.DateField()
+    forecast_hour = models.IntegerField()
+
+    predicted_temperature = models.FloatField()
+    predicted_hvac_load = models.FloatField()
+    predicted_cost = models.FloatField(null=True, blank=True)
+    confidence_score = models.FloatField()
+    model_version = models.CharField(max_length=20, default="v1.0")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["forecast_date", "forecast_hour"]
