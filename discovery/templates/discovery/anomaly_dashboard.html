@@ -1,0 +1,80 @@
+{% extends 'discovery/base.html' %}
+
+{% block title %} Anomaly Dashboard - BACnet Discovery{% endblock %}
+
+{% block head %}
+<style>
+.anomaly-high {
+    background-color: #f8d7da;
+    border-left: 4px solid #dc3545;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+    <h1>🚨 Anomaly Dashboard</h1>
+
+    <!-- Statistics Cards -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Total Anomalies</h5>
+                    <h2>{{ total_anomalies }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5>High Severity</h5>
+                    <h2 class="text-danger">{{ high_severity_count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Medium Severity</h5>
+                    <h2 class="text-warning">{{ medium_severity_count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5>Affected Devices</h5>
+                    <h2 class="text-info">{{ device_stats|length }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Anomalies Table -->
+    <h3>Recent Anomalies</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Device</th>
+                <th>Message</th>
+                <th>Severity</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for anomaly in recent_anomalies %}
+            <tr>
+                <td>{{ anomaly.triggered_at|date:"M d, H:i" }}</td>
+                <td>{{ anomaly.device.device_id }}</td>
+                <td>{{ anomaly.message }}</td>
+                <td>
+                    <span class="badge {% if anomaly.severity == 'high'%}bg-danger{% else %}bg-warning{% endif %}">
+                        {{ anomaly.severity|title }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

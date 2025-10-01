@@ -47,7 +47,7 @@ from .exceptions import (
     DeviceNotFoundError,
     ValidationError,
 )
-from .models import BACnetDevice, BACnetPoint, BACnetReading
+from .models import AlarmHistory, BACnetDevice, BACnetPoint, BACnetReading
 from .serializers import (
     AnomalyReadingSerializer,
     AnomalyStatsSerializer,
@@ -1256,3 +1256,49 @@ class AnomalyStatsAPIView(APIView):
                 {"success": False, "error": str(e), "timestamp": timezone.now()},
                 status=500,
             )
+
+
+def anomaly_dashboard(request):
+    """Dashboard for anomaly detection results"""
+    time_filter = request.GET.get("time", "24hours")
+    severity_filter = request.GET.get("severity", "all")
+
+    base_qs = (
+        AlarmHistory.objects.filter(alarm_type="anomaly_detected")
+        .select_related("device", "point")
+        .order_by("-triggered_at")
+    )
+
+    if time_filter == "24hours":
+        cutoff_time = timezone.now() - timedelta(hours=24)
+    elif time_filter == "7days":
+        cutoff_time = timezone.now() - timedelta(days=7)
+    elif time_filter == "30days":
+        cutoff_time = timezone.now() - timedelta(days=30)
+    base_qs = base_qs.filter(triggered_at__gte=cutoff_time)
+
+    if severity_filter != "all":
+        base_qs = base_qs.filter(severity=severity_filter)
+
+    recent_anomalies = base_qs[:50]
+    total_anomalies = base_qs.count()
+    high_severity_count = base_qs.filter(severity="high").count()
+    medium_severity_count = base_qs.filter(severity="medium").count()
+
+    device_stats = (
+        base_qs.values("device__device_id", "device__address")
+        .annotate(anomaly_count=Count("id"))
+        .order_by("-anomaly_count")[:10]
+    )
+
+    context = {
+        "recent_anomalies": recent_anomalies,
+        "total_anomalies": total_anomalies,
+        "high_severity_count": high_severity_count,
+        "medium_severity_count": medium_severity_count,
+        "device_stats": device_stats,
+        "time_filter": time_filter,
+        "severity_filter": severity_filter,
+    }
+
+    return render(request, "discovery/anomaly_dashboard.html", context)

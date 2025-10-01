@@ -96,4 +96,5 @@ urlpatterns = [
         AnomalyStatsAPIView.as_view(),
         name="anomaly-stats-api",
     ),
+    path("anomaly-dashboard/", views.anomaly_dashboard, name="anomaly_dashboard"),
 ]
