@@ -1,8 +1,14 @@
 class BACnetConstants:
     # Time and limits
     MAX_READING_LIMIT = 50
-    REFRESH_THRESHOLD_SECONDS = 300
+    COLLECTION_INTERVAL_SECONDS = 300
     STALE_THRESHOLD_SECONDS = 3600
+
+    # Energy Analytics Constants
+    BASE_HVAC_LOAD_KWH = 0.5
+    LOAD_PER_DEGREE_KWH = 0.3
+    READINGS_PER_HOUR = 3600 / COLLECTION_INTERVAL_SECONDS  # 12 readings per hour
+    READINGS_PER_DAY = READINGS_PER_HOUR * 24.0  # 288 readings per day
 
     # BACnet Property Names
     VENDOR_IDENTIFIER = "vendorIdentifier"

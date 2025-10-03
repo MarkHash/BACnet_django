@@ -2,6 +2,8 @@ import os
 
 import dj_database_url
 
+from discovery.constants import BACnetConstants
+
 from .settings import *  # noqa: F401,F403
 
 # Override Windows detection for containers
@@ -93,7 +95,7 @@ if not IS_WINDOWS_HOST:
             },
             "collect-readings": {
                 "task": "discovery.tasks.collect_readings_task",
-                "schedule": 300.0,
+                "schedule": BACnetConstants.COLLECTION_INTERVAL_SECONDS,
             },
         }
     )

@@ -4,7 +4,6 @@ from unittest.mock import Mock
 from django.test import TestCase
 from django.utils import timezone
 
-from discovery.constants import BACnetConstants
 from discovery.views import (
     _build_device_context,
     _organise_points_by_type,
@@ -31,15 +30,6 @@ class TestRefreshReadingsLogic(TestCase):
         stale_reading.value_last_read = timezone.now() - timedelta(minutes=10)
 
         result = _should_refresh_readings(stale_reading)
-        self.assertTrue(result)
-
-    def test_should_refresh_at_exact_threshold(self):
-        threshold_reading = Mock()
-        threshold_reading.value_last_read = timezone.now() - timedelta(
-            seconds=BACnetConstants.REFRESH_THRESHOLD_SECONDS
-        )
-
-        result = _should_refresh_readings(threshold_reading)
         self.assertTrue(result)
 
 

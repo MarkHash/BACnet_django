@@ -24,11 +24,12 @@ abstracting service layer complexity into user-friendly endpoints.
 
 import logging
 from datetime import timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from django.db.models import Avg, Count, FloatField, Max, Min, Q
+from django.db.models import Avg, Count, FloatField, Max, Min, Q, Sum
 from django.db.models.functions import Cast
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -47,7 +48,13 @@ from .exceptions import (
     DeviceNotFoundError,
     ValidationError,
 )
-from .models import AlarmHistory, BACnetDevice, BACnetPoint, BACnetReading
+from .models import (
+    AlarmHistory,
+    BACnetDevice,
+    BACnetPoint,
+    BACnetReading,
+    EnergyMetrics,
+)
 from .serializers import (
     AnomalyReadingSerializer,
     AnomalyStatsSerializer,
@@ -59,7 +66,7 @@ from .serializers import (
 from .services import BACnetService
 
 
-def create_error_response(error, user_friendly=True):
+def create_error_response(error: Exception, user_friendly: bool = True) -> JsonResponse:
     if isinstance(error, DeviceNotFoundError):
         message = f"Device {error.device_id} not found"
     elif isinstance(error, ConfigurationError):
@@ -86,7 +93,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def dashboard(request):
+def dashboard(request: HttpRequest) -> HttpResponse:
     devices = (
         BACnetDevice.objects.filter(is_active=True)
         .annotate(point_count=Count("points"))
@@ -103,7 +110,7 @@ def dashboard(request):
     return render(request, "discovery/dashboard.html", context)
 
 
-def device_detail(request, device_id):
+def device_detail(request: HttpRequest, device_id: int) -> HttpResponse:
     device = get_object_or_404(BACnetDevice, device_id=device_id)
     points = device.points.all().order_by("object_type", "instance_number")
 
@@ -113,16 +120,7 @@ def device_detail(request, device_id):
     return render(request, "discovery/device_detail.html", context)
 
 
-def _should_refresh_readings(latest_reading):
-    if not latest_reading:
-        return True
-    time_since_reading = (
-        timezone.now() - latest_reading.value_last_read
-    ).total_seconds()
-    return time_since_reading > BACnetConstants.REFRESH_THRESHOLD_SECONDS
-
-
-def _organise_points_by_type(points):
+def _organise_points_by_type(points) -> Dict[str, List]:
     points_by_type = {}
     for point in points:
         if point.object_type not in points_by_type:
@@ -131,7 +129,9 @@ def _organise_points_by_type(points):
     return points_by_type
 
 
-def _build_device_context(device, points, points_by_type):
+def _build_device_context(
+    device: BACnetDevice, points, points_by_type: Dict
+) -> Dict[str, Any]:
     context = {
         "device": device,
         "points": points,
@@ -143,7 +143,7 @@ def _build_device_context(device, points, points_by_type):
 
 
 @csrf_exempt
-def read_device_point_values(request, device_id):
+def read_device_point_values(request: HttpRequest, device_id: int) -> JsonResponse:
     if request.method == "POST":
         try:
             device = get_object_or_404(BACnetDevice, device_id=device_id)
@@ -176,7 +176,7 @@ def read_device_point_values(request, device_id):
 
 
 @csrf_exempt
-def discover_device_points(request, device_id):
+def discover_device_points(request: HttpRequest, device_id: int) -> JsonResponse:
     if request.method == "POST":
         try:
             device = get_object_or_404(BACnetDevice, device_id=device_id)
@@ -212,7 +212,7 @@ def discover_device_points(request, device_id):
 
 
 @csrf_exempt
-def start_discovery(request):
+def start_discovery(request: HttpRequest) -> JsonResponse:
     if request.method == "POST":
         try:
             logger.debug("ensure_bacnet_client")
@@ -242,7 +242,9 @@ def start_discovery(request):
 
 
 @csrf_exempt
-def read_single_point_value(request, device_id, object_type, instance_number):
+def read_single_point_value(
+    request: HttpRequest, device_id: int, object_type: str, instance_number: int
+) -> JsonResponse:
     if request.method == "POST":
         try:
             device = get_object_or_404(BACnetDevice, device_id=device_id)
@@ -271,7 +273,7 @@ def read_single_point_value(request, device_id, object_type, instance_number):
     return JsonResponse({"success": False, "message": "Invalid request"})
 
 
-def get_device_value_api(request, device_id):
+def get_device_value_api(request: HttpRequest, device_id: int) -> JsonResponse:
     device = get_object_or_404(BACnetDevice, device_id=device_id)
     points_data = []
     for point in device.points.all().order_by("object_type", "instance_number"):
@@ -305,7 +307,7 @@ def get_device_value_api(request, device_id):
 
 
 @csrf_exempt
-def clear_devices(request):
+def clear_devices(request: HttpRequest) -> JsonResponse:
     if request.method == "POST":
         try:
             device_count = BACnetDevice.objects.filter(is_active=True).count()
@@ -333,7 +335,7 @@ def clear_devices(request):
 @api_rate_limit(rate="200/h", method=["GET", "POST"])
 @api_error_handler
 @csrf_exempt
-def devices_status_api(request):
+def devices_status_api(request: HttpRequest) -> JsonResponse:
     """
     GET /api/devices/status/ - All devices overview
     """
@@ -422,7 +424,7 @@ def devices_status_api(request):
 
 @api_rate_limit(rate="100/h", method=["GET", "POST"])
 @api_error_handler
-def device_trends_api(request, device_id):
+def device_trends_api(request: HttpRequest, device_id: int) -> JsonResponse:
     """
     GET /api/devices/{id}/analytics/trends/
     ?period=24hours&points=analogInput:100,analogInput:101
@@ -600,7 +602,7 @@ class DeviceTrendsAPIView(APIView):
     Get historical trends for device points
     """
 
-    def _safe_float_conversion(self, value):
+    def _safe_float_conversion(self, value: Any) -> Optional[float]:
         """Safely convert value to float, return None for non-numeric values"""
         if value is None:
             return None
@@ -806,7 +808,9 @@ class DevicePerformanceAPIView(APIView):
             )
 
 
-def calculate_completeness_score(point, expected_reading_per_point):
+def calculate_completeness_score(
+    point: BACnetPoint, expected_reading_per_point: float
+) -> Tuple[int, float]:
     actual_readings = BACnetReading.objects.filter(
         point=point, read_time__gte=timezone.now() - timedelta(hours=24)
     ).count()
@@ -814,7 +818,7 @@ def calculate_completeness_score(point, expected_reading_per_point):
     return actual_readings, completeness_score
 
 
-def calculate_accuracy_score(point):
+def calculate_accuracy_score(point: BACnetPoint) -> Tuple[List[float], float]:
     outliers = []
     readings_values = BACnetReading.objects.filter(
         point=point, read_time__gte=timezone.now() - timedelta(hours=24)
@@ -843,7 +847,9 @@ def calculate_accuracy_score(point):
     return outliers, accuracy_score
 
 
-def calculate_freshness_score(point):
+def calculate_freshness_score(
+    point: BACnetPoint,
+) -> Tuple[Optional[BACnetReading], float]:
     latest_reading = (
         BACnetReading.objects.filter(point=point).order_by("-read_time").first()
     )
@@ -857,7 +863,7 @@ def calculate_freshness_score(point):
     return latest_reading, freshness_score
 
 
-def calculate_consistency_score(point):
+def calculate_consistency_score(point: BACnetPoint) -> float:
     readings = BACnetReading.objects.filter(
         point=point, read_time__gte=timezone.now() - timedelta(hours=24)
     ).order_by("read_time")
@@ -1258,7 +1264,7 @@ class AnomalyStatsAPIView(APIView):
             )
 
 
-def anomaly_dashboard(request):
+def anomaly_dashboard(request: HttpRequest) -> HttpResponse:
     """Dashboard for anomaly detection results"""
     time_filter = request.GET.get("time", "24hours")
     severity_filter = request.GET.get("severity", "all")
@@ -1302,3 +1308,73 @@ def anomaly_dashboard(request):
     }
 
     return render(request, "discovery/anomaly_dashboard.html", context)
+
+
+def energy_dashboard(request: HttpRequest) -> HttpResponse:
+    """Energy Analytics Dashboard"""
+    return render(request, "discovery/energy_dashboard.html")
+
+
+def energy_dashboard_api(request: HttpRequest) -> JsonResponse:
+    """API endpoint for energy dashboard data"""
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=7)
+    recent_metrics = EnergyMetrics.objects.filter(
+        date__gte=start_date, date__lte=end_date
+    ).select_related("device")
+
+    if not recent_metrics.exists():
+        return JsonResponse(
+            {
+                "total_energy": 0,
+                "avg_efficiency": 0,
+                "daily_trends": [],
+                "device_metrics": [],
+                "forecasts": [],
+            }
+        )
+
+    summary_stats = recent_metrics.aggregate(
+        total_load=Sum("estimated_hvac_load"),
+        avg_efficiency=Avg("efficiency_score"),
+        device_count=Count("device", distinct=True),
+    )
+
+    daily_trends = []
+    for metric in recent_metrics.order_by("date"):
+        daily_trends.append(
+            {
+                "date": metric.date.isoformat(),
+                "energy": float(metric.estimated_hvac_load),
+                "efficiency": float(metric.efficiency_score),
+                "avg_temp": float(metric.avg_temperature),
+            }
+        )
+
+    device_metrics = []
+    for metric in recent_metrics.order_by("-estimated_hvac_load")[:10]:
+        device_metrics.append(
+            {
+                "device_id": metric.device.device_id,
+                "energy": float(metric.estimated_hvac_load),
+                "efficiency": float(metric.efficiency_score),
+                "avg_temp": float(metric.avg_temperature),
+                "forecast": float(metric.predicted_next_day_load or 0),
+                "date": metric.date.isoformat(),
+            }
+        )
+
+    return JsonResponse(
+        {
+            "total_energy": float(summary_stats["total_load"] or 0),
+            "avg_efficiency": float(summary_stats["avg_efficiency"] or 0),
+            "device_count": summary_stats["device_count"],
+            "daily_trends": daily_trends,
+            "device_metrics": device_metrics,
+            "forecasts": [
+                float(m.predicted_next_day_load or 0)
+                for m in recent_metrics
+                if m.predicted_next_day_load
+            ],
+        }
+    )

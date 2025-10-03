@@ -50,6 +50,7 @@ django.setup()
 from django.core.management import execute_from_command_line  # noqa: E402
 from django.db import connection  # noqa: E402
 
+from discovery.constants import BACnetConstants  # noqa: E402
 from discovery.services import BACnetService  # noqa: E402
 
 DISCOVERY_INTERVAL = 1800  # 30 minutes
@@ -105,7 +106,10 @@ def bacnet_worker():
                 if run_device_discovery():
                     last_discovery = current_time
 
-            if current_time - last_readings >= READINGS_INTERVAL:
+            if (
+                current_time - last_readings
+                >= BACnetConstants.COLLECTION_INTERVAL_SECONDS
+            ):
                 print(
                     f"📊 Running scheduled readings collection... "
                     f"({time.strftime('%H:%M:%S')})"

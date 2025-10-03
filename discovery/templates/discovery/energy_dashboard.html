@@ -1,0 +1,175 @@
+{% extends 'discovery/base.html' %}
+{% load static %}
+
+{% block title %}Energy Analytics Dashboard{% endblock %}
+{% block extra_css %}
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.1);
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-label {
+        font-size: 1rem;
+        opacity: 0.9;
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 14px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .efficiency-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        font-size: 2.5rem;
+        font-weight: 600;
+        border-radius: 50px;
+        text-align: center;
+        min-width: 60px;
+    }
+
+    .efficiency-excellent { background-color: #28a745; color: white; }
+    .efficiency-good { background-color: #17a2b8; color: white; }
+    .efficiency-fair { background-color: #e8a317; color: white; }
+    .efficiency-poor { background-color: #dc3545; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h2 mb-0">🔋 Energy Analytics Dashboard</h1>
+            <p class="text-muted">Real-time HVAC performance insights</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4 col-12 mb-3">
+            <div class="metric-card h-100">
+                <div class="metric-value" id="total-energy">--</div>
+                <div class="metric-label">Total Energy (kwh)</div>
+            </div>
+        </div>
+
+        <div class="col-md-4 col-12 mb-3">
+            <div class="metric-card h-100">
+                <div class="metric-value" id="avg-efficiency">--</div>
+                <div class="metric-label">Average Efficiency</div>
+            </div>
+        </div>
+
+        <div class="col-md-4 col-12 mb-3">
+            <div class="metric-card h-100">
+                <div class="metric-value" id="device-count">--</div>
+                <div class="metric-label">Active Devices</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="chart-container">
+                <h5 class="mb-3">📈 Energy Consumption Trends</h5>
+                <canvas id="energyTrendsChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard-content">
+        <p>Dashboard content will go here..</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    console.log('🧪 JavaScript is working!');
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🔋 Loading energy dashboard...');
+        loadEnergyData();
+    });
+
+    async function loadEnergyData() {
+        try {
+            const response = await fetch('/api/energy-dashboard/');
+            const data = await response.json();
+
+            console.log('📊 Energy data received:', data);
+
+            updateMetricCards(data);
+        } catch (error) {
+            console.error('❌ Error loading energy data:', error);
+            showError();
+        }
+    }
+
+    function updateMetricCards(data) {
+        document.getElementById('total-energy').textContent = data.total_energy.toFixed(1);
+        const efficiency = data.avg_efficiency;
+        let badgeClass = 'efficiency-poor';
+        if (efficiency >= 80) badgeClass = 'efficiency-excellent';
+        else if (efficiency >= 60) badgeClass = 'efficiency-good';
+        else if (efficiency >= 40) badgeClass = 'efficiency-fair';
+
+        document.getElementById('avg-efficiency').innerHTML = `<span class="efficiency-badge ${badgeClass}">${efficiency.toFixed(1)}%</span>`;
+        document.getElementById('device-count').textContent = data.device_count;
+
+        createEnergyChart(data.daily_trends);
+        console.log('✅ Metric cards updated successfully!');
+    }
+
+    function showError() {
+        document.getElementById('total-energy').textContent = 'Error';
+        document.getElementById('avg-efficiency').textContent = 'Error';
+        document.getElementById('device-count').textContent = 'Error';
+    }
+
+    function createEnergyChart(dailyTrends) {
+        const ctx = document.getElementById('energyTrendsChart').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dailyTrends.map(d => new Date(d.date).toLocaleDateString()),
+                datasets: [{
+                    label: 'Energy Consumption (kWh)',
+                    data: dailyTrends.map(d => d.energy),
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {display: false}
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {display: true, text: 'Energy (kWh)' }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

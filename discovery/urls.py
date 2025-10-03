@@ -96,5 +96,19 @@ urlpatterns = [
         AnomalyStatsAPIView.as_view(),
         name="anomaly-stats-api",
     ),
-    path("anomaly-dashboard/", views.anomaly_dashboard, name="anomaly_dashboard"),
+    path(
+        "anomaly-dashboard/",
+        views.anomaly_dashboard,
+        name="anomaly_dashboard",
+    ),
+    path(
+        "energy-dashboard/",
+        views.energy_dashboard,
+        name="energy_dashboard",
+    ),
+    path(
+        "api/energy-dashboard/",
+        views.energy_dashboard_api,
+        name="energy_dashboard_api",
+    ),
 ]
