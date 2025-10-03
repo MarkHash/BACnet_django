@@ -18,7 +18,7 @@ Including another URLconf
 from django.urls import path
 
 from . import views
-from .views import (
+from .api_views import (
     AnomalyListAPIView,
     AnomalyStatsAPIView,
     DataQualityAPIView,
