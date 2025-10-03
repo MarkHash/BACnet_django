@@ -1,36 +1,9 @@
-from datetime import timedelta
-from unittest.mock import Mock
-
-from django.test import TestCase
-from django.utils import timezone
-
 from discovery.views import (
     _build_device_context,
     _organise_points_by_type,
-    _should_refresh_readings,
 )
 
 from .test_base import BACnetDeviceFactory, BACnetPointFactory, BaseTestCase
-
-
-class TestRefreshReadingsLogic(TestCase):
-    def test_should_refresh_with_no_reading(self):
-        result = _should_refresh_readings(None)
-        self.assertTrue(result)
-
-    def test_should_refresh_with_fresh_data(self):
-        fresh_reading = Mock()
-        fresh_reading.value_last_read = timezone.now() - timedelta(minutes=2)
-
-        result = _should_refresh_readings(fresh_reading)
-        self.assertFalse(result)
-
-    def test_should_refresh_with_stale_data(self):
-        stale_reading = Mock()
-        stale_reading.value_last_read = timezone.now() - timedelta(minutes=10)
-
-        result = _should_refresh_readings(stale_reading)
-        self.assertTrue(result)
 
 
 class TestOrganisePointsByType(BaseTestCase):
