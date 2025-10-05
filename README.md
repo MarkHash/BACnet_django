@@ -6,7 +6,7 @@ A production-ready Django web application for discovering, monitoring, and analy
 
 - **🔍 Device Discovery**: Automatic BACnet device discovery with real-time monitoring
 - **📊 Energy Analytics**: HVAC energy consumption analysis with ML forecasting
-- **🤖 Anomaly Detection**: Real-time statistical anomaly detection for temperature sensors
+- **🤖 Enhanced Anomaly Detection**: Multi-method ensemble ML system with Isolation Forest, Z-score, and IQR
 - **⚡ Performance Optimized**: 3.7x faster batch reading with PostgreSQL persistence
 - **🌐 Modern REST API**: Enterprise-grade APIs with OpenAPI documentation
 - **🖥️ Cross-Platform**: Supports Linux/Mac (Docker) and Windows (native networking)
@@ -56,9 +56,13 @@ python windows_integrated_server.py
 - ML forecasting using linear regression with confidence intervals
 - Interactive dashboard with Chart.js visualizations
 
-### Data Quality & Monitoring
+### Enhanced Anomaly Detection & Monitoring
+- **Multi-method ensemble ML system** combining Z-score, IQR, and Isolation Forest
+- **Real-time anomaly detection** with confidence scoring and method transparency
+- **Multi-dimensional analysis** using temperature, time patterns, and rate of change
+- **Intelligent alerting** with contextual messages and severity classification
+- **Production-ready integration** with AlarmHistory and detailed logging
 - Comprehensive data quality metrics (completeness, accuracy, freshness)
-- Real-time anomaly detection using Z-score and IQR methods
 - Performance analytics with device activity monitoring
 - Historical trends analysis with flexible time periods
 
@@ -86,12 +90,64 @@ GET /api/v2/devices/performance/
 # Energy analytics
 GET /api/energy-dashboard/
 
-# Anomaly detection
+# Enhanced anomaly detection
 GET /api/v2/anomalies/
 GET /api/v2/anomalies/stats/
+GET /api/v2/anomalies/devices/{device_id}/
 
 # Interactive documentation
 GET /api/docs/
+```
+
+## 🤖 Enhanced Anomaly Detection System
+
+### Multi-Method Ensemble Approach
+The system combines three complementary detection methods for superior accuracy:
+
+1. **Z-Score Analysis** (40% weight)
+   - Fast statistical outlier detection using standard deviation
+   - Excellent for detecting value-based anomalies
+   - Works with minimal data (5+ readings)
+
+2. **IQR Method** (30% weight)
+   - Quartile-based detection resistant to extreme outliers
+   - Robust performance with skewed data distributions
+   - Complements Z-score for comprehensive coverage
+
+3. **Isolation Forest** (30% weight)
+   - **Multi-dimensional ML algorithm** analyzing:
+     - Temperature value
+     - Hour of day (daily patterns)
+     - Rate of temperature change
+   - Detects complex anomalies that single-dimension methods miss
+   - Requires 20+ samples for reliable training
+
+### Real-World Example
+```python
+# Normal reading
+22.5°C at 2:00 PM → All methods agree: Normal ✅
+
+# Complex anomaly that only ensemble catches
+23.0°C at 3:00 AM with +15°C rate change
+├─ Z-score: 0.5 (normal temperature value)
+├─ IQR: 0.3 (normal quartile position)
+├─ Isolation Forest: 0.9 (wrong time + extreme rate change)
+└─ Ensemble: 0.6 → ANOMALY DETECTED! 🚨
+```
+
+### Production Integration
+- **Real-time processing** during BACnet data collection
+- **Intelligent alarm creation** with detailed method contributions
+- **Severity classification**: Medium (<0.7) or High (≥0.7) ensemble scores
+- **Transparency**: See which methods contributed to each detection
+
+### Test the System
+```bash
+# Generate realistic test anomalies
+docker-compose exec web python manage.py create_test_anomalies --count 10
+
+# View results
+http://127.0.0.1:8000/anomaly-dashboard/
 ```
 
 ## 🛠️ Requirements

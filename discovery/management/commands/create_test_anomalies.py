@@ -1,6 +1,6 @@
 """
-Django management command to create test anomaly data
-for testing the anomaly dashboard display
+Django management command to create test ensemble anomaly data
+for testing the enhanced anomaly dashboard display with method contributions
 """
 
 from datetime import timedelta
@@ -12,7 +12,10 @@ from discovery.models import AlarmHistory, BACnetDevice, BACnetPoint
 
 
 class Command(BaseCommand):
-    help = "Create test anomaly data for dashboard testing"
+    help = (
+        "Create test ensemble anomaly data with method contributions "
+        "for dashboard testing"
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -37,86 +40,94 @@ class Command(BaseCommand):
             )
             return
 
-        # Sample anomaly scenarios
+        # Enhanced ensemble anomaly scenarios
         anomaly_scenarios = [
             {
                 "alarm_type": "anomaly_detected",
                 "severity": "high",
                 "trigger_value": "35.7",
-                "threshold_value": "2.8",
+                "threshold_value": "0.85",
                 "message": (
-                    "Temperature spike detected: 35.7°C exceeds normal range "
-                    "(18-24°C). Z-score: 2.8"
+                    "Ensemble anomaly detected: analogInput:1202006 = 35.7°C "
+                    "(Ensemble: 0.85) Methods: z_score: 0.92, iqr: 0.76, "
+                    "isolation_forest: 0.88, ensemble: 0.85"
                 ),
             },
             {
                 "alarm_type": "anomaly_detected",
                 "severity": "medium",
                 "trigger_value": "16.2",
-                "threshold_value": "2.1",
+                "threshold_value": "0.63",
                 "message": (
-                    "Temperature drop detected: 16.2°C below normal range. "
-                    "Possible HVAC malfunction."
+                    "Ensemble anomaly detected: analogInput:1204006 = 16.2°C "
+                    "(Ensemble: 0.63) Methods: z_score: 0.78, iqr: 0.65, "
+                    "isolation_forest: 0.45, ensemble: 0.63"
                 ),
             },
             {
                 "alarm_type": "anomaly_detected",
                 "severity": "high",
                 "trigger_value": "42.1",
-                "threshold_value": "3.2",
+                "threshold_value": "0.94",
                 "message": (
-                    "Critical temperature anomaly: 42.1°C detected. "
-                    "Immediate attention required."
+                    "Ensemble anomaly detected: analogInput:1203006 = 42.1°C "
+                    "(Ensemble: 0.94) Methods: z_score: 0.98, iqr: 0.89, "
+                    "isolation_forest: 0.95, ensemble: 0.94"
                 ),
             },
             {
                 "alarm_type": "anomaly_detected",
                 "severity": "medium",
                 "trigger_value": "27.8",
-                "threshold_value": "2.3",
+                "threshold_value": "0.68",
                 "message": (
-                    "Elevated temperature detected: 27.8°C above comfort zone. "
-                    "Check HVAC settings."
+                    "Ensemble anomaly detected: analogValue:1201006 = 27.8°C "
+                    "(Ensemble: 0.68) Methods: z_score: 0.54, iqr: 0.71, "
+                    "isolation_forest: 0.79, ensemble: 0.68"
                 ),
             },
             {
                 "alarm_type": "anomaly_detected",
                 "severity": "high",
                 "trigger_value": "13.4",
-                "threshold_value": "2.9",
+                "threshold_value": "0.81",
                 "message": (
-                    "Abnormally low temperature: 13.4°C. "
-                    "Potential heating system failure."
+                    "Ensemble anomaly detected: analogInput:1202006 = 13.4°C "
+                    "(Ensemble: 0.81) Methods: z_score: 0.87, iqr: 0.83, "
+                    "isolation_forest: 0.72, ensemble: 0.81"
                 ),
             },
             {
                 "alarm_type": "anomaly_detected",
                 "severity": "medium",
                 "trigger_value": "26.5",
-                "threshold_value": "2.0",
+                "threshold_value": "0.59",
                 "message": (
-                    "Temperature variance detected: 26.5°C sustained reading "
-                    "outside normal pattern."
+                    "Ensemble anomaly detected: analogInput:1204006 = 26.5°C "
+                    "(Ensemble: 0.59) Methods: z_score: 0.45, iqr: 0.61, "
+                    "isolation_forest: 0.71, ensemble: 0.59"
                 ),
             },
             {
                 "alarm_type": "anomaly_detected",
                 "severity": "high",
                 "trigger_value": "38.9",
-                "threshold_value": "3.1",
+                "threshold_value": "0.89",
                 "message": (
-                    "Overheating alert: 38.9°C in server room. "
-                    "Risk of equipment damage."
+                    "Ensemble anomaly detected: analogInput:1203006 = 38.9°C "
+                    "(Ensemble: 0.89) Methods: z_score: 0.91, iqr: 0.86, "
+                    "isolation_forest: 0.90, ensemble: 0.89"
                 ),
             },
             {
                 "alarm_type": "anomaly_detected",
                 "severity": "medium",
                 "trigger_value": "15.8",
-                "threshold_value": "2.2",
+                "threshold_value": "0.65",
                 "message": (
-                    "Sub-optimal temperature: 15.8°C may affect occupant "
-                    "comfort and energy efficiency."
+                    "Ensemble anomaly detected: analogValue:1201006 = 15.8°C "
+                    "(Ensemble: 0.65) Methods: z_score: 0.72, iqr: 0.58, "
+                    "isolation_forest: 0.65, ensemble: 0.65"
                 ),
             },
         ]

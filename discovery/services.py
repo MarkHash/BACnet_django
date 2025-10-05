@@ -416,8 +416,8 @@ class BACnetService:
 
     def _detect_anomaly_if_temperature(self, point, value_str):
         """
-        Run anomaly detection if this is a temperature sensor.
-        Returns (anomaly_score, is_anomaly) tuple.
+        Run enhanced anomaly detection if this is a temperature sensor.
+        Returns (ensemble_score, is_anomaly, method_contributions) tuple.
         """
         if (
             point.object_type == "analogInput"
@@ -426,21 +426,16 @@ class BACnetService:
         ):
             try:
                 numeric_value = float(value_str)
-                z_score = self.anomaly_detector.detect_z_score_anomaly(
-                    point, numeric_value
+                ensemble_score, is_anomaly, method_contributions = (
+                    self.anomaly_detector.detect_ensemble_anomaly(point, numeric_value)
                 )
-                z_is_anomaly = z_score > self.anomaly_detector.z_score_threshold
-                iqr_score, iqr_is_anomaly = self.anomaly_detector.detect_iqr_anomaly(
-                    point, numeric_value
-                )
-                combined_is_anomaly = z_is_anomaly or iqr_is_anomaly
-                return z_score, iqr_score, combined_is_anomaly
+                return ensemble_score, is_anomaly, method_contributions
             except (ValueError, TypeError):
                 pass
-        return None, False
+        return 0.0, False, {}
 
     def _create_reading_with_alarm_check(
-        self, point, value, z_score, iqr_score, is_anomaly
+        self, point, value, ensemble_score, is_anomaly, method_contributions
     ):
         """
         Create a BACnetReading and optionally create an AlarmHistory
@@ -449,32 +444,37 @@ class BACnetService:
         Args:
             point: BACnetPoint instance
             value: Reading value (string)
-            z_score: Anomaly Z-score (float or None)
-            iqr_score: IQR score (float or None)
+            ensemble_score: Ensemble anomaly score (float)
             is_anomaly: Boolean indicating if this is an anomaly
+            method_contributions: Dict with individual method scores
         """
-
-        combined_score = max(z_score or 0, iqr_score or 0)
 
         BACnetReading.objects.create(
             point=point,
             value=str(value),
-            anomaly_score=combined_score,
+            anomaly_score=ensemble_score,
             is_anomaly=is_anomaly,
             read_time=timezone.now(),
         )
 
         if is_anomaly:
+            method_details = ", ".join(
+                [
+                    f"{method}: {score:.2f}"
+                    for method, score in method_contributions.items()
+                ]
+            )
             AlarmHistory.objects.create(
                 device=point.device,
                 point=point,
                 alarm_type="anomaly_detected",
-                severity="medium" if z_score < 5.0 else "high",
+                severity="medium" if ensemble_score < 0.7 else "high",
                 triggered_value=str(value),
-                threshold_value=f"{combined_score:.2f}",
+                threshold_value=f"{ensemble_score:.2f}",
                 message=(
-                    f"Anomaly detected: {point.identifier} = {value} "
-                    f"(Z-score: {z_score:.2f}, IQR: {iqr_score:.2f})"
+                    f"Ensemble anomaly detected: {point.identifier} = {value} "
+                    f"(Ensemble: {ensemble_score:.2f}) "
+                    f"Methods: {method_details}"
                 ),
                 triggered_at=timezone.now(),
             )
@@ -488,11 +488,11 @@ class BACnetService:
             self._log(f"📖 Reading {point.identifier}")
             value = self.bacnet.read(read_string)
             if value is not None:
-                z_score, iqr_score, is_anomaly = self._detect_anomaly_if_temperature(
-                    point, str(value)
+                ensemble_score, is_anomaly, method_contributions = (
+                    self._detect_anomaly_if_temperature(point, str(value))
                 )
                 self._create_reading_with_alarm_check(
-                    point, value, z_score, iqr_score, is_anomaly
+                    point, value, ensemble_score, is_anomaly, method_contributions
                 )
                 results["readings_collected"] += 1
 
@@ -553,12 +553,16 @@ class BACnetService:
                 value_index += 2
 
             if present_value is not None:
-                z_score, iqr_score, is_anomaly = self._detect_anomaly_if_temperature(
-                    point, str(present_value)
+                ensemble_score, is_anomaly, method_contributions = (
+                    self._detect_anomaly_if_temperature(point, str(present_value))
                 )
 
                 self._create_reading_with_alarm_check(
-                    point, present_value, z_score, iqr_score, is_anomaly
+                    point,
+                    present_value,
+                    ensemble_score,
+                    is_anomaly,
+                    method_contributions,
                 )
 
                 point.present_value = str(present_value)
