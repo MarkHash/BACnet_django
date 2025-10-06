@@ -1,13 +1,10 @@
 from django.contrib import admin
 
 from .models import (
-    AlarmHistory,
     BACnetDevice,
     BACnetPoint,
     BACnetReading,
     DeviceStatusHistory,
-    MaintenanceLog,
-    SensorReadingStats,
 )
 
 
@@ -36,7 +33,13 @@ class BACnetDeviceAdmin(admin.ModelAdmin):
 
 @admin.register(BACnetPoint)
 class BACnetPointAdmin(admin.ModelAdmin):
-    list_display = ["identifier", "device", "object_type", "instance_number", "created"]
+    list_display = [
+        "identifier",
+        "device",
+        "object_type",
+        "instance_number",
+        "created",
+    ]
     list_filter = ["object_type", "device"]
     search_fields = ["identifier", "object_name", "description"]
     readonly_fields = ["created"]
@@ -44,11 +47,21 @@ class BACnetPointAdmin(admin.ModelAdmin):
     fieldsets = (
         (
             "Point Identification",
-            {"fields": ("device", "object_type", "instance_number", "identifier")},
+            {
+                "fields": (
+                    "device",
+                    "object_type",
+                    "instance_number",
+                    "identifier",
+                )
+            },
         ),
         (
             "Additional Information",
-            {"fields": ("object_name", "description"), "classes": ("collapse",)},
+            {
+                "fields": ("object_name", "description"),
+                "classes": ("collapse",),
+            },
         ),
         ("Timestamps", {"fields": ("created",), "classes": ("collapse",)}),
     )
@@ -56,8 +69,8 @@ class BACnetPointAdmin(admin.ModelAdmin):
 
 @admin.register(BACnetReading)
 class BACnetReadingAdmin(admin.ModelAdmin):
-    list_display = ["point", "value", "read_time", "is_anomaly", "data_quality_score"]
-    list_filter = ["is_anomaly", "read_time", "point__device"]
+    list_display = ["point", "value", "read_time"]
+    list_filter = ["read_time", "point__device"]
     search_fields = ["point__identifier", "value"]
     readonly_fields = ["read_time"]
     date_hierarchy = "read_time"
@@ -67,6 +80,3 @@ class BACnetReadingAdmin(admin.ModelAdmin):
 
 
 admin.site.register(DeviceStatusHistory)
-admin.site.register(SensorReadingStats)
-admin.site.register(AlarmHistory)
-admin.site.register(MaintenanceLog)
