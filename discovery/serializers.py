@@ -1,7 +1,5 @@
 from rest_framework import serializers
 
-from .models import BACnetReading
-
 
 class DeviceStatusSerializer(serializers.Serializer):
     device_id = serializers.IntegerField()
@@ -39,91 +37,3 @@ class DeviceTrendsResponseSerializer(serializers.Serializer):
     device_id = serializers.IntegerField()
     period = serializers.CharField()
     points = TrendsPointSerializer(many=True)
-
-
-class DevicePerformanceSerializer(serializers.Serializer):
-    device_id = serializers.IntegerField()
-    address = serializers.CharField()
-    total_readings = serializers.IntegerField()
-    readings_last_24h = serializers.IntegerField()
-    avg_data_quality = serializers.FloatField(allow_null=True)
-    most_active_point = serializers.CharField(allow_null=True)
-    last_reading_time = serializers.DateTimeField(allow_null=True)
-    uptime_percentage = serializers.FloatField()
-
-
-class DevicePerformanceResponseSerializer(serializers.Serializer):
-    success = serializers.BooleanField()
-    summary = serializers.DictField()
-    devices = DevicePerformanceSerializer(many=True)
-    timestamp = serializers.DateTimeField()
-
-
-class DataQualityMetricsSerializer(serializers.Serializer):
-    completeness_score = serializers.FloatField()
-    accuracy_score = serializers.FloatField()
-    freshness_score = serializers.FloatField()
-    consistency_score = serializers.FloatField()
-    overall_quality_score = serializers.FloatField()
-
-
-class PointQualitySerializer(serializers.Serializer):
-    point_identifier = serializers.CharField()
-    total_readings = serializers.IntegerField()
-    missing_readings = serializers.IntegerField()
-    outlier_count = serializers.IntegerField()
-    last_reading_time = serializers.DateTimeField(allow_null=True)
-    data_gaps_hours = serializers.FloatField()
-    quality_score = serializers.FloatField()
-
-
-class DeviceDataQualitySerializer(serializers.Serializer):
-    device_id = serializers.IntegerField()
-    address = serializers.CharField()
-    metrics = DataQualityMetricsSerializer()
-    point_quality = PointQualitySerializer(many=True)
-    data_coverage_percentage = serializers.FloatField()
-    avg_reading_interval_minutes = serializers.FloatField(allow_null=True)
-
-
-class DataQualityResponseSerializer(serializers.Serializer):
-    success = serializers.BooleanField()
-    summary = DataQualityMetricsSerializer()
-    devices = DeviceDataQualitySerializer(many=True)
-    timestamp = serializers.DateTimeField()
-
-
-class AnomalyReadingSerializer(serializers.ModelSerializer):
-    device_id = serializers.CharField(source="point.device.device_id")
-    device_address = serializers.CharField(source="point.device.address")
-    point_identifier = serializers.CharField(source="point.identifier")
-    point_units = serializers.CharField(source="point.units")
-
-    class Meta:
-        model = BACnetReading
-        fields = [
-            "id",
-            "device_id",
-            "device_address",
-            "point_identifier",
-            "point_units",
-            "value",
-            "anomaly_score",
-            "is_anomaly",
-            "read_time",
-        ]
-
-
-class AnomalyStatsSerializer(serializers.Serializer):
-    total_anomalies = serializers.IntegerField()
-    anomalies_today = serializers.IntegerField()
-    top_anomaly_devices = serializers.ListField()
-    anomaly_rate = serializers.FloatField()
-
-
-class DeviceAnomalySerializer(serializers.Serializer):
-    device_id = serializers.IntegerField()
-    device_address = serializers.CharField()
-    anomaly_count = serializers.IntegerField()
-    latest_anomaly = serializers.DateTimeField()
-    anomaly_rate = serializers.FloatField()

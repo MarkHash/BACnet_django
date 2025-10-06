@@ -1,32 +1,23 @@
 """
-BACnet Web API Views
+BACnet Web Views - Simplified Core Version
 
-This module provides REST API endpoints for BACnet device management and monitoring.
-The views handle web requests for device discovery, point reading, and system status,
-providing both JSON API responses and HTML dashboard interfaces.
+This module provides basic web interface for BACnet device discovery and
+monitoring. Focused on core functionality: device discovery, point reading,
+and basic dashboards.
 
-API Endpoints:
-- Device management: List, discover, and control BACnet devices
-- Point operations: Read values, manage points, and trigger updates
-- System status: Health checks, statistics, and operational dashboards
-- Manual operations: Force discovery, clear devices, and administrative actions
-
-Features:
-- RESTful JSON responses with comprehensive error handling
-- HTML dashboard views for system monitoring
-- Real-time device status and connectivity information
-- Integration with background task system for async operations
-- Cross-platform support (Docker containers and Windows native)
-
-The views provide the web interface layer for the BACnet monitoring system,
-abstracting service layer complexity into user-friendly endpoints.
+Core Features:
+- Device discovery and management
+- Point value reading and monitoring
+- Simple dashboard interface
+- Manual operations (discovery, clear devices)
+- RESTful JSON API endpoints
 """
 
 import logging
 from datetime import timedelta
 from typing import Any, Dict, List
 
-from django.db.models import Avg, Count, FloatField, Max, Min, Sum
+from django.db.models import Avg, Count, FloatField, Max, Min
 from django.db.models.functions import Cast
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -43,10 +34,8 @@ from .exceptions import (
     ValidationError,
 )
 from .models import (
-    AlarmHistory,
     BACnetDevice,
     BACnetPoint,
-    EnergyMetrics,
 )
 from .services import BACnetService
 
@@ -72,7 +61,8 @@ def create_error_response(error: Exception, user_friendly: bool = True) -> JsonR
 
 
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
 logger = logging.getLogger(__name__)
@@ -228,7 +218,10 @@ def start_discovery(request: HttpRequest) -> JsonResponse:
 
 @csrf_exempt
 def read_single_point_value(
-    request: HttpRequest, device_id: int, object_type: str, instance_number: int
+    request: HttpRequest,
+    device_id: int,
+    object_type: str,
+    instance_number: int,
 ) -> JsonResponse:
     if request.method == "POST":
         try:
@@ -245,7 +238,8 @@ def read_single_point_value(
             return JsonResponse(
                 {
                     "success": True,
-                    "message": f"Reading values from {object_type}:{instance_number}",
+                    "message": f"Reading values from "
+                    f"{object_type}:{instance_number}",
                     "value": value,
                     "point_id": point.id,
                 }
@@ -311,7 +305,10 @@ def clear_devices(request: HttpRequest) -> JsonResponse:
             )
         except Exception as e:
             return JsonResponse(
-                {"success": False, "message": f"Error clearing devices: {str(e)}"}
+                {
+                    "success": False,
+                    "message": f"Error clearing devices: {str(e)}",
+                }
             )
 
     return JsonResponse({"success": False, "message": "Invalid request"})
@@ -481,119 +478,3 @@ def device_trends_api(request: HttpRequest, device_id: int) -> JsonResponse:
 
     except Http404:
         raise DeviceNotFoundAPIError()
-
-
-def anomaly_dashboard(request: HttpRequest) -> HttpResponse:
-    """Dashboard for anomaly detection results"""
-    time_filter = request.GET.get("time", "24hours")
-    severity_filter = request.GET.get("severity", "all")
-
-    base_qs = (
-        AlarmHistory.objects.filter(alarm_type="anomaly_detected")
-        .select_related("device", "point")
-        .order_by("-triggered_at")
-    )
-
-    if time_filter == "24hours":
-        cutoff_time = timezone.now() - timedelta(hours=24)
-    elif time_filter == "7days":
-        cutoff_time = timezone.now() - timedelta(days=7)
-    elif time_filter == "30days":
-        cutoff_time = timezone.now() - timedelta(days=30)
-    base_qs = base_qs.filter(triggered_at__gte=cutoff_time)
-
-    if severity_filter != "all":
-        base_qs = base_qs.filter(severity=severity_filter)
-
-    recent_anomalies = base_qs[:50]
-    total_anomalies = base_qs.count()
-    high_severity_count = base_qs.filter(severity="high").count()
-    medium_severity_count = base_qs.filter(severity="medium").count()
-
-    device_stats = (
-        base_qs.values("device__device_id", "device__address")
-        .annotate(anomaly_count=Count("id"))
-        .order_by("-anomaly_count")[:10]
-    )
-
-    context = {
-        "recent_anomalies": recent_anomalies,
-        "total_anomalies": total_anomalies,
-        "high_severity_count": high_severity_count,
-        "medium_severity_count": medium_severity_count,
-        "device_stats": device_stats,
-        "time_filter": time_filter,
-        "severity_filter": severity_filter,
-    }
-
-    return render(request, "discovery/anomaly_dashboard.html", context)
-
-
-def energy_dashboard(request: HttpRequest) -> HttpResponse:
-    """Energy Analytics Dashboard"""
-    return render(request, "discovery/energy_dashboard.html")
-
-
-def energy_dashboard_api(request: HttpRequest) -> JsonResponse:
-    """API endpoint for energy dashboard data"""
-    end_date = timezone.now().date()
-    start_date = end_date - timedelta(days=7)
-    recent_metrics = EnergyMetrics.objects.filter(
-        date__gte=start_date, date__lte=end_date
-    ).select_related("device")
-
-    if not recent_metrics.exists():
-        return JsonResponse(
-            {
-                "total_energy": 0,
-                "avg_efficiency": 0,
-                "daily_trends": [],
-                "device_metrics": [],
-                "forecasts": [],
-            }
-        )
-
-    summary_stats = recent_metrics.aggregate(
-        total_load=Sum("estimated_hvac_load"),
-        avg_efficiency=Avg("efficiency_score"),
-        device_count=Count("device", distinct=True),
-    )
-
-    daily_trends = []
-    for metric in recent_metrics.order_by("date"):
-        daily_trends.append(
-            {
-                "date": metric.date.isoformat(),
-                "energy": float(metric.estimated_hvac_load),
-                "efficiency": float(metric.efficiency_score),
-                "avg_temp": float(metric.avg_temperature),
-            }
-        )
-
-    device_metrics = []
-    for metric in recent_metrics.order_by("-estimated_hvac_load")[:10]:
-        device_metrics.append(
-            {
-                "device_id": metric.device.device_id,
-                "energy": float(metric.estimated_hvac_load),
-                "efficiency": float(metric.efficiency_score),
-                "avg_temp": float(metric.avg_temperature),
-                "forecast": float(metric.predicted_next_day_load or 0),
-                "date": metric.date.isoformat(),
-            }
-        )
-
-    return JsonResponse(
-        {
-            "total_energy": float(summary_stats["total_load"] or 0),
-            "avg_efficiency": float(summary_stats["avg_efficiency"] or 0),
-            "device_count": summary_stats["device_count"],
-            "daily_trends": daily_trends,
-            "device_metrics": device_metrics,
-            "forecasts": [
-                float(m.predicted_next_day_load or 0)
-                for m in recent_metrics
-                if m.predicted_next_day_load
-            ],
-        }
-    )
