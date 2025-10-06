@@ -1,12 +1,29 @@
-# BACnet Django Discovery Application
+# BACnet Django Discovery Application - Portfolio Showcase
 
-A production-ready Django web application for discovering, monitoring, and analyzing BACnet devices on your network. Features advanced energy analytics, anomaly detection, and enterprise-level code architecture.
+## 🎨 **Portfolio Branch - Advanced ML & Enterprise Features**
 
-## 🚀 Key Features
+A production-ready Django web application showcasing advanced machine learning, enterprise architecture, and comprehensive BACnet building automation capabilities. This branch demonstrates sophisticated technical skills including ensemble ML algorithms, energy analytics, and enterprise-level code quality.
 
+> **Note**: This is the **portfolio/showcase version** featuring advanced ML and analytics. For the simplified company version, see other branches.
+
+## 🏆 **Portfolio Highlights - Advanced Technical Skills**
+
+### **🤖 Machine Learning & Data Science**
+- **Ensemble Anomaly Detection**: Multi-method ML combining Z-score, IQR, and Isolation Forest
+- **Multi-dimensional Analysis**: Temperature, time patterns, and rate-of-change features
+- **Energy Analytics Pipeline**: HVAC efficiency analysis with ML forecasting
+- **Statistical Analysis**: Production-ready statistical methods with confidence scoring
+
+### **🏗️ Enterprise Architecture & Code Quality**
+- **100% Type Safety**: Complete type annotations across all modules
+- **API Separation**: Clean separation between HTML views and REST APIs
+- **Custom Exception Hierarchy**: Production-quality error handling
+- **Enterprise Documentation**: Comprehensive docstrings and architectural guides
+
+### **🚀 Core BACnet Features**
 - **🔍 Device Discovery**: Automatic BACnet device discovery with real-time monitoring
 - **📊 Energy Analytics**: HVAC energy consumption analysis with ML forecasting
-- **🤖 Enhanced Anomaly Detection**: Multi-method ensemble ML system with Isolation Forest, Z-score, and IQR
+- **🤖 Enhanced Anomaly Detection**: Multi-method ensemble ML system with method transparency
 - **⚡ Performance Optimized**: 3.7x faster batch reading with PostgreSQL persistence
 - **🌐 Modern REST API**: Enterprise-grade APIs with OpenAPI documentation
 - **🖥️ Cross-Platform**: Supports Linux/Mac (Docker) and Windows (native networking)

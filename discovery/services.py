@@ -1,5 +1,5 @@
 """
-BACnet Service Layer
+BACnet Service Layer - Simplified Core Version
 
 This module provides the main service interface for BACnet device discovery and data
 collection. It uses the BAC0 library for BACnet protocol communication and integrates
@@ -10,7 +10,7 @@ Key Features:
 - Automated point discovery and metadata collection
 - Batch reading of device values with error handling
 - Device status tracking and historical logging
-- Statistical processing for anomaly detection
+- Basic data collection and storage
 
 Classes:
 - BACnetService: Main service class for all BACnet operations
@@ -34,9 +34,7 @@ from .exceptions import (
     BACnetPropertyReadError,
     BACnetServiceError,
 )
-from .ml_utils import AnomalyDetector
 from .models import (
-    AlarmHistory,
     BACnetDevice,
     BACnetPoint,
     BACnetReading,
@@ -63,7 +61,6 @@ class BACnetService:
         """
         self.bacnet = None
         self.callback = callback
-        self.anomaly_detector = AnomalyDetector()
 
     def __enter__(self):
         if self.bacnet is not None:
@@ -414,70 +411,19 @@ class BACnetService:
                 device.device_id, f"Failed to read point {point.identifier}", e
             )
 
-    def _detect_anomaly_if_temperature(self, point, value_str):
+    def _create_reading(self, point, value):
         """
-        Run enhanced anomaly detection if this is a temperature sensor.
-        Returns (ensemble_score, is_anomaly, method_contributions) tuple.
-        """
-        if (
-            point.object_type == "analogInput"
-            and point.units
-            and "degree" in point.units.lower()
-        ):
-            try:
-                numeric_value = float(value_str)
-                ensemble_score, is_anomaly, method_contributions = (
-                    self.anomaly_detector.detect_ensemble_anomaly(point, numeric_value)
-                )
-                return ensemble_score, is_anomaly, method_contributions
-            except (ValueError, TypeError):
-                pass
-        return 0.0, False, {}
-
-    def _create_reading_with_alarm_check(
-        self, point, value, ensemble_score, is_anomaly, method_contributions
-    ):
-        """
-        Create a BACnetReading and optionally create an AlarmHistory
-        if anomaly detected.
+        Create a simple BACnetReading record.
 
         Args:
             point: BACnetPoint instance
             value: Reading value (string)
-            ensemble_score: Ensemble anomaly score (float)
-            is_anomaly: Boolean indicating if this is an anomaly
-            method_contributions: Dict with individual method scores
         """
-
         BACnetReading.objects.create(
             point=point,
             value=str(value),
-            anomaly_score=ensemble_score,
-            is_anomaly=is_anomaly,
             read_time=timezone.now(),
         )
-
-        if is_anomaly:
-            method_details = ", ".join(
-                [
-                    f"{method}: {score:.2f}"
-                    for method, score in method_contributions.items()
-                ]
-            )
-            AlarmHistory.objects.create(
-                device=point.device,
-                point=point,
-                alarm_type="anomaly_detected",
-                severity="medium" if ensemble_score < 0.7 else "high",
-                triggered_value=str(value),
-                threshold_value=f"{ensemble_score:.2f}",
-                message=(
-                    f"Ensemble anomaly detected: {point.identifier} = {value} "
-                    f"(Ensemble: {ensemble_score:.2f}) "
-                    f"Methods: {method_details}"
-                ),
-                triggered_at=timezone.now(),
-            )
 
     def _read_single_point(self, device, point, results):
         try:
@@ -488,12 +434,7 @@ class BACnetService:
             self._log(f"📖 Reading {point.identifier}")
             value = self.bacnet.read(read_string)
             if value is not None:
-                ensemble_score, is_anomaly, method_contributions = (
-                    self._detect_anomaly_if_temperature(point, str(value))
-                )
-                self._create_reading_with_alarm_check(
-                    point, value, ensemble_score, is_anomaly, method_contributions
-                )
+                self._create_reading(point, value)
                 results["readings_collected"] += 1
 
         except Exception as e:
@@ -553,17 +494,7 @@ class BACnetService:
                 value_index += 2
 
             if present_value is not None:
-                ensemble_score, is_anomaly, method_contributions = (
-                    self._detect_anomaly_if_temperature(point, str(present_value))
-                )
-
-                self._create_reading_with_alarm_check(
-                    point,
-                    present_value,
-                    ensemble_score,
-                    is_anomaly,
-                    method_contributions,
-                )
+                self._create_reading(point, present_value)
 
                 point.present_value = str(present_value)
                 if object_name:
