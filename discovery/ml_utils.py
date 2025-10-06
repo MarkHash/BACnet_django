@@ -89,10 +89,15 @@ class AnomalyDetector:
     ) -> float:
         """Calculate mean and standard deviation for Z-score method."""
         try:
+            if len(values) < self.MIN_DATA_POINTS:
+                raise InsufficientAnomalyDataError(
+                    point.id, len(values), self.MIN_DATA_POINTS
+                )
+
             mean = np.mean(values)
             std_dev = np.std(values)
 
-            if len(values) < self.MIN_DATA_POINTS or std_dev == 0:
+            if std_dev == 0:
                 raise InsufficientAnomalyDataError(
                     point.id, len(values), self.MIN_DATA_POINTS
                 )
