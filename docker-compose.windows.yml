@@ -17,67 +17,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Redis for caching and background tasks
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-
-  celery:
-    build: .
-    command: celery -A bacnet_project worker --loglevel=info --exclude-queues=bacnet
-    volumes:
-      - .:/app
-    depends_on:
-      - db
-      - redis
-    environment:
-      - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
-      - HOST_OS=Windows
-    env_file:
-      - .env
-
-  beat:
-    build: .
-    command: celery -A bacnet_project beat --loglevel=info
-    volumes:
-      - .:/app
-    depends_on:
-      - db
-      - redis
-    environment:
-      - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
-      - HOST_OS=Windows
-    env_file:
-      - .env
-
-  # BACnet worker - Commented out for Windows (handled by windows_integrated_server.py)
-  # bacnet-worker:
-  #   build: .
-  #   command: celery -A bacnet_project worker --loglevel=info --queues=bacnet
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #     - ${PWD}:/host_app
-  #     - ${PWD}:/app
-  #   working_dir: /app
-  #   environment:
-  #     - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
-  #     - DATABASE_URL=${DATABASE_URL}
-  #     - REDIS_URL=${REDIS_URL}
-  #     - CELERY_BROKER_URL=${REDIS_URL}
-  #     - CELERY_RESULT_BACKEND=${REDIS_URL}
-  #     - HOST_OS=Windows
-  #     # Remove BACNET_IP to let it auto-detect
-  #   depends_on:
-  #     - db
-  #     - redis
-  #   env_file:
-  #     - .env
-
 volumes:
   postgres_data:
-  redis_data:
   static_volume:

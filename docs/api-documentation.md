@@ -1,27 +1,27 @@
 # API Documentation
 
-This document provides comprehensive documentation for all BACnet Django API endpoints.
+This document provides documentation for the simplified BACnet Django API endpoints.
 
 ## API Overview
 
-The application provides both modern class-based API views (v2) and legacy function-based endpoints for backward compatibility.
+The application provides simple REST API endpoints for core BACnet functionality including device management, data collection, and basic monitoring.
 
-## Modern DRF API (v2) - Recommended
+## Core API Endpoints
 
 ### Device Status API
-**Endpoint**: `GET /api/v2/devices/status/`
+**Endpoint**: `GET /api/devices/status/`
 
-Returns comprehensive device status overview with statistics.
+Returns overview of all active BACnet devices with basic statistics.
 
 **Response**:
 ```json
 {
   "success": true,
   "summary": {
-    "total_devices": 6,
-    "online_devices": 4,
+    "total_devices": 3,
+    "online_devices": 2,
     "offline_devices": 1,
-    "stale_devices": 1,
+    "stale_devices": 0,
     "no_data_devices": 0
   },
   "devices": [
@@ -29,20 +29,20 @@ Returns comprehensive device status overview with statistics.
       "device_id": 2000,
       "address": "192.168.1.100",
       "statistics": {
-        "total_points": 161,
-        "readable_points": 145,
-        "points_with_values": 132,
+        "total_points": 45,
+        "readable_points": 40,
+        "points_with_values": 35,
         "device_status": "online",
-        "last_reading_time": "2024-09-30T15:30:00Z"
+        "last_reading_time": "2024-10-06T15:30:00Z"
       }
     }
   ],
-  "timestamp": "2024-09-30T15:35:00Z"
+  "timestamp": "2024-10-06T15:35:00Z"
 }
 ```
 
 ### Device Trends API
-**Endpoint**: `GET /api/v2/devices/{device_id}/trends/`
+**Endpoint**: `GET /api/devices/{device_id}/trends/`
 
 Returns historical data trends for device points over specified time periods.
 
@@ -52,7 +52,7 @@ Returns historical data trends for device points over specified time periods.
 
 **Example**:
 ```bash
-curl "http://127.0.0.1:8000/api/v2/devices/2000/trends/?period=24hours&points=analogInput:100,analogInput:101"
+curl "http://127.0.0.1:8000/api/devices/2000/trends/?period=24hours&points=analogInput:100"
 ```
 
 **Response**:
@@ -66,7 +66,7 @@ curl "http://127.0.0.1:8000/api/v2/devices/2000/trends/?period=24hours&points=an
       "point_identifier": "analogInput:100",
       "readings": [
         {
-          "timestamp": "2024-09-30T15:00:00Z",
+          "timestamp": "2024-10-06T15:00:00Z",
           "value": 23.5
         }
       ],
@@ -81,248 +81,179 @@ curl "http://127.0.0.1:8000/api/v2/devices/2000/trends/?period=24hours&points=an
 }
 ```
 
-### Device Performance API
-**Endpoint**: `GET /api/v2/devices/performance/`
+## Device Management API
 
-Returns performance metrics and activity analytics for all devices.
+### Discover Devices
+**Endpoint**: `POST /api/discover-devices/`
+
+Initiates BACnet device discovery on the network.
 
 **Response**:
 ```json
 {
   "success": true,
-  "summary": {
-    "total_devices": 6,
-    "online_devices": 5,
-    "total_readings": 15420,
-    "avg_readings_per_device": 2570.0
-  },
-  "devices": [
+  "message": "Device discovery completed with 3 devices"
+}
+```
+
+### Read Device Points
+**Endpoint**: `POST /api/devices/{device_id}/read-points/`
+
+Reads current values from all points on a specific device.
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "Read 45 sensor values from device 2000",
+  "readings_collected": 45
+}
+```
+
+### Discover Device Points
+**Endpoint**: `POST /api/devices/{device_id}/discover-points/`
+
+Discovers and catalogs all available points on a specific device.
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "Discovered 45 points for device 2000",
+  "device_id": 2000,
+  "estimated_time": "5-10 seconds",
+  "status": "reading"
+}
+```
+
+### Get Device Values
+**Endpoint**: `GET /api/devices/{device_id}/values/`
+
+Returns current values for all points on a specific device.
+
+**Response**:
+```json
+{
+  "success": true,
+  "device_id": 2000,
+  "points": [
     {
-      "device_id": 2000,
-      "address": "192.168.1.100",
-      "total_readings": 3245,
-      "readings_last_24h": 287,
-      "avg_data_quality": 94.2,
-      "most_active_point": "analogInput:100",
-      "last_reading_time": "2024-09-30T15:30:00Z",
-      "uptime_percentage": 98.5
+      "id": 123,
+      "identifier": "analogInput:100",
+      "object_type": "analogInput",
+      "instance_number": 100,
+      "object_name": "Temperature Sensor",
+      "present_value": "23.5",
+      "units": "degreesCelsius",
+      "display_value": "23.5 °C",
+      "value_last_read": "2024-10-06T15:30:00Z",
+      "is_readable": true,
+      "data_type": "real"
     }
   ],
-  "timestamp": "2024-09-30T15:35:00Z"
+  "total_points": 45,
+  "readable_points": 40,
+  "last_updated": "2024-10-06T15:35:00Z"
 }
 ```
 
-### Data Quality API
-**Endpoint**: `GET /api/v2/devices/data-quality/`
+### Clear Devices
+**Endpoint**: `POST /api/clear-devices/`
 
-Provides comprehensive data quality analysis including completeness, accuracy, freshness, and consistency metrics.
+Deactivates all devices and their associated data.
 
 **Response**:
 ```json
 {
   "success": true,
-  "summary": {
-    "completeness_score": 85.4,
-    "accuracy_score": 96.2,
-    "freshness_score": 78.9,
-    "consistency_score": 82.1,
-    "overall_quality_score": 87.3
-  },
-  "devices": [
-    {
-      "device_id": 2000,
-      "address": "192.168.1.100",
-      "metrics": {
-        "completeness_score": 88.2,
-        "accuracy_score": 98.5,
-        "freshness_score": 92.1,
-        "consistency_score": 85.7,
-        "overall_quality_score": 91.4
-      },
-      "point_quality": [
-        {
-          "point_identifier": "analogInput:100",
-          "total_readings": 245,
-          "missing_readings": 43,
-          "outlier_count": 2,
-          "last_reading_time": "2024-09-30T15:30:00Z",
-          "data_gaps_hours": 1.5,
-          "quality_score": 89.3
-        }
-      ],
-      "data_coverage_percentage": 85.1,
-      "avg_reading_interval_minutes": 5.2
-    }
-  ]
+  "message": "Cleared 3 devices and 135 points"
 }
 ```
 
-**Data Quality Metrics Explained**:
-- **Completeness Score (0-100%)**: Percentage of expected readings present vs missing
-- **Accuracy Score (0-100%)**: Percentage of readings without outliers (using IQR method)
-- **Freshness Score (0-100%)**: How recent the latest readings are (exponential decay)
-- **Consistency Score (0-100%)**: Regularity of reading intervals (low standard deviation = high score)
-- **Overall Quality Score**: Weighted average (40% completeness, 30% accuracy, 20% freshness, 10% consistency)
+## Error Handling
 
-### Anomaly Detection APIs
+All API endpoints return standard error responses:
 
-#### List Anomalies
-**Endpoint**: `GET /api/v2/anomalies/`
-
-**Parameters**:
-- `hours`: Time range in hours (default: 24)
-- `device_id`: Filter by specific device ID
-- `anomalies_only`: Show only anomalous readings (true/false)
-- `limit`: Maximum number of results (default: 100)
-
-**Example**:
-```bash
-curl "http://127.0.0.1:8000/api/v2/anomalies/?anomalies_only=true&hours=24"
-```
-
-#### Device-Specific Anomalies
-**Endpoint**: `GET /api/v2/anomalies/devices/{device_id}/`
-
-Returns anomaly data for a specific device with same filtering options.
-
-#### Anomaly Statistics
-**Endpoint**: `GET /api/v2/anomalies/stats/`
-
-**Parameters**:
-- `days`: Time range in days for statistics (default: 7)
-
-**Response**:
-```json
-{
-  "success": true,
-  "period_days": 7,
-  "data": {
-    "total_anomalies": 45,
-    "anomalies_today": 8,
-    "top_anomalies_devices": [
-      {
-        "point__device__device_id": 2000,
-        "point__device__address": "192.168.1.100",
-        "anomaly_count": 12
-      }
-    ],
-    "anomaly_rate": 2.3
-  }
-}
-```
-
-### Energy Dashboard API
-**Endpoint**: `GET /api/energy-dashboard/`
-
-Returns comprehensive energy analytics including HVAC efficiency metrics, consumption estimates, and ML forecasts.
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "total_devices": 6,
-    "devices_with_energy_data": 4,
-    "total_energy_consumed": 127.45,
-    "average_efficiency_score": 78.5,
-    "devices": [
-      {
-        "device_id": 2000,
-        "device_address": "192.168.1.100",
-        "date": "2024-09-30",
-        "avg_temperature": 23.2,
-        "min_temperature": 21.8,
-        "max_temperature": 24.7,
-        "temperature_variance": 0.85,
-        "estimated_hvac_load": 15.8,
-        "peak_demand_hour": 14,
-        "efficiency_score": 82.3,
-        "predicted_next_day_load": 16.2,
-        "confidence_score": 0.87
-      }
-    ],
-    "trends": [
-      {"hour": 0, "energy": 12.5},
-      {"hour": 1, "energy": 11.8},
-      {"hour": 14, "energy": 18.9},
-      {"hour": 23, "energy": 13.2}
-    ]
-  },
-  "timestamp": "2024-09-30T15:30:00Z"
-}
-```
-
-**Energy Analytics Metrics Explained**:
-- **Estimated HVAC Load**: Energy consumption in kWh based on temperature deviation from 22°C comfort zone
-- **Efficiency Score (0-100)**: HVAC performance based on stability (40%) + comfort (40%) + timing (20%)
-- **Peak Demand Hour**: Hour with highest temperature deviation requiring most energy
-- **Predicted Next Day Load**: ML forecast using linear regression with confidence scoring
-- **Temperature Variance**: Statistical variance indicating HVAC stability performance
-
-## Legacy API (v1) - Function-based
-
-### Device Operations
-- `POST /api/start-discovery/` - Start device discovery
-- `POST /api/discover-points/{device_id}/` - Discover device points
-- `POST /api/read-values/{device_id}/` - Read all point values from device
-- `GET /api/device-values/{device_id}/` - Get current device values
-- `POST /api/clear-devices/` - Clear all devices
-
-### Point Operations
-- `POST /api/read-point/{device_id}/{object_type}/{instance}/` - Read single point
-- `GET /api/devices/status/` - Get device status (legacy format)
-- `GET /api/devices/{device_id}/analytics/trends/` - Get device trends (legacy)
-
-## API Features
-
-### Authentication
-Currently, the API does not require authentication for development. For production deployment, consider implementing:
-- Token-based authentication
-- Rate limiting per user
-- API key management
-
-### Rate Limiting
-- Device Status API: 200 requests/hour
-- Device Trends API: 100 requests/hour
-- Other endpoints: 1000 requests/hour
-
-### Error Handling
-All API endpoints return structured error responses:
 ```json
 {
   "success": false,
-  "error": {
-    "code": "DEVICE_NOT_FOUND",
-    "message": "Device not found",
-    "type": "DeviceNotFoundAPIError"
-  },
-  "timestamp": "2024-09-30T15:35:00Z"
+  "message": "Device 999 not found",
+  "error_type": "DeviceNotFoundError"
 }
 ```
 
-### Response Size Guidelines
-- `1hour`: ~11KB (ideal for real-time dashboards)
-- `24hours`: ~338KB (good for daily views)
-- `7days`: ~533KB (use with caution, consider pagination)
+Common HTTP status codes:
+- `200`: Success
+- `400`: Bad Request (validation error)
+- `404`: Not Found (device/point not found)
+- `429`: Too Many Requests (rate limited)
+- `500`: Internal Server Error
 
-## Testing with PowerShell (Windows)
+## Rate Limiting
 
-```powershell
-# Test all main API endpoints
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v2/devices/status/" -Method GET
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v2/devices/performance/" -Method GET
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/energy-dashboard/" -Method GET
+API endpoints are rate limited:
+- Device Status: 200 requests per hour
+- Device Trends: 100 requests per hour
+- Management operations: No limit
 
-# Test POST endpoints
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/start-discovery/" -Method POST
+## Authentication
 
-# Get formatted JSON output
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v2/devices/performance/" -Method GET | ConvertTo-Json -Depth 5
+Currently, all API endpoints allow anonymous access for development purposes.
+
+## Example Usage
+
+### Python (requests)
+```python
+import requests
+
+# Get device status
+response = requests.get('http://127.0.0.1:8000/api/devices/status/')
+data = response.json()
+
+# Discover devices
+response = requests.post('http://127.0.0.1:8000/api/discover-devices/')
+result = response.json()
+
+# Read device points
+response = requests.post('http://127.0.0.1:8000/api/devices/2000/read-points/')
+readings = response.json()
 ```
 
-## Interactive Documentation
+### JavaScript (fetch)
+```javascript
+// Get device status
+fetch('/api/devices/status/')
+  .then(response => response.json())
+  .then(data => console.log(data));
 
+// Discover devices
+fetch('/api/discover-devices/', {method: 'POST'})
+  .then(response => response.json())
+  .then(result => console.log(result));
+```
+
+### curl
+```bash
+# Get device status
+curl http://127.0.0.1:8000/api/devices/status/
+
+# Discover devices
+curl -X POST http://127.0.0.1:8000/api/discover-devices/
+
+# Read device points
+curl -X POST http://127.0.0.1:8000/api/devices/2000/read-points/
+
+# Get device trends for last 24 hours
+curl "http://127.0.0.1:8000/api/devices/2000/trends/?period=24hours"
+```
+
+## OpenAPI Documentation
+
+Interactive API documentation is available at:
 - **Swagger UI**: http://127.0.0.1:8000/api/docs/
+- **ReDoc**: http://127.0.0.1:8000/api/redoc/
 - **OpenAPI Schema**: http://127.0.0.1:8000/api/schema/
 
-The Swagger UI provides interactive testing capabilities for all API endpoints with real-time parameter validation and response examples.
+## Support
+
+For API support and questions, refer to the main project documentation.

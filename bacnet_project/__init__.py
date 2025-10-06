@@ -1,3 +1,2 @@
-from .celery import app as celery_app
-
-__all__ = ("celery_app",)
+# Simplified BACnet Django Project
+# No Celery background tasks needed for core functionality

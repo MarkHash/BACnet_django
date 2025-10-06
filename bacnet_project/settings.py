@@ -16,8 +16,6 @@ import os
 import sys
 from pathlib import Path
 
-# Celery Beat Schedule
-from celery.schedules import crontab
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
@@ -75,7 +73,6 @@ INSTALLED_APPS = [
     "corsheaders",
     "drf_spectacular",
     "discovery",
-    "django_celery_results",
     "rest_framework",
 ]
 
@@ -174,33 +171,6 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Celery Configuration
-# CELERY_BROKER_URL = 'django://'
-CELERY_BROKER_URL = (
-    f"sqlalchemy+postgresql://{os.getenv('DB_USER')}:"
-    f"{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:"
-    f"{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
-)
-CELERY_RESULT_BACKEND = (
-    f"db+postgresql://{os.getenv('DB_USER')}:"
-    f"{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:"
-    f"{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
-)
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_TIMEZONE = TIME_ZONE
-
-CELERY_BEAT_SCHEDULE = {
-    "calculate-hourly-stats": {
-        "task": "discovery.tasks.calculate_hourly_stats",
-        "schedule": crontab(minute=0),  # Run every hour at minute 0
-    },
-    "calculate-daily-stats": {
-        "task": "discovery.tasks.calculate_daily_stats",
-        "schedule": crontab(hour=0, minute=5),  # Run daily at 00:05
-    },
-}
 
 # IS_WINDOWS_HOST = platform.system() == "Windows" and not os.path.exists("/.dockerenv")
 

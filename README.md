@@ -1,32 +1,24 @@
-# BACnet Django Discovery Application - Portfolio Showcase
+# BACnet Django Discovery Application - Simplified Core
 
-## 🎨 **Portfolio Branch - Advanced ML & Enterprise Features**
+## 🏢 **Company Internship Version - Essential BACnet Functionality**
 
-A production-ready Django web application showcasing advanced machine learning, enterprise architecture, and comprehensive BACnet building automation capabilities. This branch demonstrates sophisticated technical skills including ensemble ML algorithms, energy analytics, and enterprise-level code quality.
+A streamlined Django web application focused on core BACnet building automation functionality. This simplified version provides essential device discovery, data collection, and monitoring capabilities suitable for production deployment.
 
-> **Note**: This is the **portfolio/showcase version** featuring advanced ML and analytics. For the simplified company version, see other branches.
+> **Note**: This is the **simplified company version** with core BACnet features only. For advanced ML and analytics, see the portfolio branch.
 
-## 🏆 **Portfolio Highlights - Advanced Technical Skills**
+## 🎯 **Core Features**
 
-### **🤖 Machine Learning & Data Science**
-- **Ensemble Anomaly Detection**: Multi-method ML combining Z-score, IQR, and Isolation Forest
-- **Multi-dimensional Analysis**: Temperature, time patterns, and rate-of-change features
-- **Energy Analytics Pipeline**: HVAC efficiency analysis with ML forecasting
-- **Statistical Analysis**: Production-ready statistical methods with confidence scoring
+### **🔍 BACnet Device Management**
+- **Device Discovery**: Automatic BACnet device discovery via WhoIs broadcasts
+- **Manual Device Creation**: Add devices manually with IP address and device ID
+- **Real-time Monitoring**: Online/offline device status tracking
+- **Point Discovery**: Automatic discovery and cataloging of device points
 
-### **🏗️ Enterprise Architecture & Code Quality**
-- **100% Type Safety**: Complete type annotations across all modules
-- **API Separation**: Clean separation between HTML views and REST APIs
-- **Custom Exception Hierarchy**: Production-quality error handling
-- **Enterprise Documentation**: Comprehensive docstrings and architectural guides
-
-### **🚀 Core BACnet Features**
-- **🔍 Device Discovery**: Automatic BACnet device discovery with real-time monitoring
-- **📊 Energy Analytics**: HVAC energy consumption analysis with ML forecasting
-- **🤖 Enhanced Anomaly Detection**: Multi-method ensemble ML system with method transparency
-- **⚡ Performance Optimized**: 3.7x faster batch reading with PostgreSQL persistence
-- **🌐 Modern REST API**: Enterprise-grade APIs with OpenAPI documentation
-- **🖥️ Cross-Platform**: Supports Linux/Mac (Docker) and Windows (native networking)
+### **📊 Data Collection & Monitoring**
+- **Real-time Reading**: Collect sensor values from BACnet points
+- **Historical Data**: Store and track readings over time
+- **Device Status History**: Monitor device connectivity and performance
+- **Basic Dashboard**: Simple web interface for device management
 
 ## 📋 Quick Start
 
@@ -38,12 +30,12 @@ docker-compose up -d
 ```
 **Access**: http://127.0.0.1:8000
 
-### Windows (Hybrid)
+### Windows (Database only)
 ```bash
 git clone <repository-url>
 cd BACnet_django
 docker-compose -f docker-compose.windows.yml up -d
-python windows_integrated_server.py
+python manage.py runserver
 ```
 **Access**: http://127.0.0.1:8000
 
@@ -51,120 +43,70 @@ python windows_integrated_server.py
 
 | Document | Description |
 |----------|-------------|
-| **[Installation Guide](docs/installation.md)** | Detailed setup instructions for all platforms |
-| **[API Documentation](docs/api-documentation.md)** | Complete REST API reference with examples |
-| **[Energy Analytics](docs/energy-analytics.md)** | HVAC efficiency analysis and dashboard |
-| **[Anomaly Detection](docs/anomaly-detection.md)** | Statistical anomaly detection system |
-| **[Troubleshooting](docs/troubleshooting.md)** | Platform-specific issues and solutions |
-| **[Development](docs/development.md)** | Architecture, testing, and contributing |
-| **[Changelog](docs/changelog.md)** | Version history and feature timeline |
+| **[Installation Guide](docs/installation.md)** | Setup instructions for development |
+| **[Troubleshooting](docs/troubleshooting.md)** | Common issues and solutions |
+| **[Development](docs/development.md)** | Development workflow and testing |
 
 ## 🎯 Core Functionality
 
 ### Device Management
 - Automatic BACnet device discovery via WhoIs broadcasts
+- Manual device creation with IP address and device ID
 - Real-time device status monitoring (online/offline)
 - Point discovery and cataloging by object type
-- Optimized batch reading with error recovery
+- Simple batch reading with error handling
 
-### Energy Analytics
-- HVAC energy consumption estimation based on temperature deviation
-- Efficiency scoring with stability, comfort, and timing analysis
-- ML forecasting using linear regression with confidence intervals
-- Interactive dashboard with Chart.js visualizations
-
-### Enhanced Anomaly Detection & Monitoring
-- **Multi-method ensemble ML system** combining Z-score, IQR, and Isolation Forest
-- **Real-time anomaly detection** with confidence scoring and method transparency
-- **Multi-dimensional analysis** using temperature, time patterns, and rate of change
-- **Intelligent alerting** with contextual messages and severity classification
-- **Production-ready integration** with AlarmHistory and detailed logging
-- Comprehensive data quality metrics (completeness, accuracy, freshness)
-- Performance analytics with device activity monitoring
-- Historical trends analysis with flexible time periods
+### Data Collection
+- Real-time sensor value collection from BACnet devices
+- Historical data storage in PostgreSQL database
+- Device status history tracking
+- Basic reading management and monitoring
 
 ## 🏗️ Architecture
 
-### Enterprise Code Organization
-- **`views.py`**: HTML rendering and function-based API endpoints
-- **`api_views.py`**: Class-based API views with comprehensive documentation
-- **`energy_analytics.py`**: HVAC energy analysis and ML forecasting
-- **`ml_utils.py`**: Anomaly detection algorithms and statistical analysis
+### Simple Code Organization
+- **`models.py`**: Core database models (Device, Point, Reading, StatusHistory)
+- **`views.py`**: HTML rendering and basic API endpoints
+- **`api_views.py`**: REST API views for device status and trends
 - **`services.py`**: BACnet communication with BAC0 integration
+- **`forms.py`**: Django forms for manual device creation
 
-### Platform-Specific Architecture
-- **Linux/Mac**: Full Docker containerization with host networking
-- **Windows**: Native BACnet networking + containerized database services
+### Deployment Options
+- **Docker**: Containerized deployment with PostgreSQL
+- **Local**: Direct Python development with local database
 
 ## 📊 API Overview
 
-### Modern REST API (v2)
+### Simple REST API
 ```bash
-# Device status and performance
-GET /api/v2/devices/status/
-GET /api/v2/devices/performance/
+# Device status and basic analytics
+GET /api/devices/status/
+GET /api/devices/{device_id}/trends/
 
-# Energy analytics
-GET /api/energy-dashboard/
-
-# Enhanced anomaly detection
-GET /api/v2/anomalies/
-GET /api/v2/anomalies/stats/
-GET /api/v2/anomalies/devices/{device_id}/
+# Device management
+POST /api/discover-devices/
+POST /api/devices/{device_id}/read-points/
+POST /api/devices/{device_id}/discover-points/
 
 # Interactive documentation
 GET /api/docs/
 ```
 
-## 🤖 Enhanced Anomaly Detection System
+## 💻 Management Commands
 
-### Multi-Method Ensemble Approach
-The system combines three complementary detection methods for superior accuracy:
-
-1. **Z-Score Analysis** (40% weight)
-   - Fast statistical outlier detection using standard deviation
-   - Excellent for detecting value-based anomalies
-   - Works with minimal data (5+ readings)
-
-2. **IQR Method** (30% weight)
-   - Quartile-based detection resistant to extreme outliers
-   - Robust performance with skewed data distributions
-   - Complements Z-score for comprehensive coverage
-
-3. **Isolation Forest** (30% weight)
-   - **Multi-dimensional ML algorithm** analyzing:
-     - Temperature value
-     - Hour of day (daily patterns)
-     - Rate of temperature change
-   - Detects complex anomalies that single-dimension methods miss
-   - Requires 20+ samples for reliable training
-
-### Real-World Example
-```python
-# Normal reading
-22.5°C at 2:00 PM → All methods agree: Normal ✅
-
-# Complex anomaly that only ensemble catches
-23.0°C at 3:00 AM with +15°C rate change
-├─ Z-score: 0.5 (normal temperature value)
-├─ IQR: 0.3 (normal quartile position)
-├─ Isolation Forest: 0.9 (wrong time + extreme rate change)
-└─ Ensemble: 0.6 → ANOMALY DETECTED! 🚨
-```
-
-### Production Integration
-- **Real-time processing** during BACnet data collection
-- **Intelligent alarm creation** with detailed method contributions
-- **Severity classification**: Medium (<0.7) or High (≥0.7) ensemble scores
-- **Transparency**: See which methods contributed to each detection
-
-### Test the System
+### Useful Commands
 ```bash
-# Generate realistic test anomalies
-docker-compose exec web python manage.py create_test_anomalies --count 10
+# Discover BACnet devices on network
+python manage.py discover_devices
 
-# View results
-http://127.0.0.1:8000/anomaly-dashboard/
+# Collect readings from all devices
+python manage.py collect_readings
+
+# Clean database (remove all data)
+python manage.py clean_db
+
+# Create admin user
+python manage.py createsuperuser
 ```
 
 ## 🛠️ Requirements
@@ -173,52 +115,58 @@ http://127.0.0.1:8000/anomaly-dashboard/
 - **Django**: 5.2+
 - **PostgreSQL**: 12+
 - **BAC0**: 23.07.03+ (BACnet communication)
-- **Libraries**: DRF, numpy, pandas, scikit-learn
+- **Libraries**: Django REST Framework, python-dotenv
 
-## 🔧 Production Features
+## ✨ Features
 
-- **Type Safety**: 100% type hints across all modules
-- **Error Handling**: Custom exception hierarchy with graceful recovery
-- **Code Quality**: Flake8 compliance with enterprise standards
-- **Documentation**: Comprehensive docstrings and API documentation
-- **Testing**: Production-tested with 200K+ real BACnet readings
-- **Security**: Environment-based configuration with secure defaults
+- **Simple Setup**: Easy Docker deployment with minimal configuration
+- **Core Functionality**: Focus on essential BACnet operations
+- **Clean Code**: Well-organized Django application structure
+- **Basic API**: RESTful endpoints for device management
+- **Manual Creation**: Add devices manually when discovery isn't available
+- **Status Monitoring**: Track device connectivity and performance
 
-## 📈 Performance Metrics
+## 📝 Development
 
-- **Device Discovery**: ~3 devices in 9 seconds
-- **Point Discovery**: 161+ points in 1.5 seconds
-- **Batch Reading**: 3.7x faster than individual reads
-- **Database**: Optimized PostgreSQL with proper indexing
-- **API Response**: <1s for most endpoints
+### Local Development
+```bash
+# Clone and setup
+git clone <repository-url>
+cd BACnet_django
+pip install -r requirements.txt
 
-## 🆕 Version 2.4 Highlights
+# Database setup
+python manage.py migrate
+python manage.py createsuperuser
 
-- **Enterprise Code Architecture**: Complete API separation and type safety
-- **Energy Analytics Pipeline**: Advanced HVAC analysis with ML forecasting
-- **Production Code Quality**: 100% type hints, comprehensive exception handling
-- **Interactive Energy Dashboard**: Real-time metrics with Chart.js visualizations
-- **Comprehensive Documentation**: Modular docs with focused README
+# Run development server
+python manage.py runserver
+```
 
-## 🤝 Contributing
+### Code Quality
+```bash
+# Code formatting
+black .
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/amazing-feature`
-3. Make your changes with tests
-4. Follow code quality standards (type hints, Flake8 compliance)
-5. Update documentation as needed
-6. Submit a pull request
+# Linting
+flake8
 
-## 📄 License
+# Type checking
+mypy discovery/
+```
 
-[Add your license information here]
+## 🔗 Admin Access
+
+- **URL**: http://127.0.0.1:8000/admin/
+- **Username**: bacnet_user
+- **Password**: password
 
 ## 🆘 Support
 
-- **Documentation**: Check the [docs/](docs/) directory for detailed guides
-- **Issues**: Create GitHub issues for bugs and feature requests
-- **Troubleshooting**: See [troubleshooting.md](docs/troubleshooting.md) for common problems
+- **Documentation**: Check the docs/ directory for guides
+- **Issues**: For bugs and feature requests
+- **Development**: See development documentation for setup
 
 ---
 
-**Built with ❤️ for the BACnet community**
+**Simple BACnet Django Application for Building Automation**

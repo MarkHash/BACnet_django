@@ -5,7 +5,38 @@ All notable changes to the BACnet Django Discovery Application are documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.4.0] - 2024-10-03
+## [3.0.0] - 2024-10-06
+
+### 🏢 Simplified Core Version for Company Use
+
+#### Major Simplification
+- **Removed Advanced Features**: Eliminated ML anomaly detection, energy analytics, and complex dashboards
+- **Simplified Models**: Reduced from 9 models to 4 core models (BACnetDevice, BACnetPoint, BACnetReading, DeviceStatusHistory)
+- **Streamlined API**: Removed 5 advanced endpoints, kept 2 core device management APIs
+- **No Background Tasks**: Removed Celery and Redis dependencies for simpler deployment
+- **Clean Dependencies**: Removed ML libraries (scikit-learn, pandas, numpy)
+
+#### Core Functionality
+- **Device Discovery**: Automatic BACnet device discovery via WhoIs broadcasts
+- **Manual Device Creation**: Added capability to manually create devices (planned)
+- **Point Management**: Discovery and reading of BACnet points
+- **Simple Dashboard**: Basic web interface for device monitoring
+- **REST API**: Essential endpoints for device status and data trends
+
+#### Technical Changes
+- **Simplified Services**: Removed ensemble anomaly detection, kept basic reading collection
+- **Clean Views**: Removed anomaly and energy dashboards, kept core device views
+- **Updated Documentation**: README and API docs now reflect simplified functionality
+- **Docker Cleanup**: Removed Redis and Celery services from docker-compose files
+- **Code Quality**: Maintained clean code standards while removing complexity
+
+#### Branch Strategy
+- **Portfolio Branch**: Advanced ML features preserved for showcase purposes
+- **Simplified Branch**: This clean version for company internship requirements
+
+---
+
+## [2.4.0] - 2024-10-03 (Portfolio Branch Only)
 
 ### 🏗️ Enterprise Code Architecture & Energy Analytics
 

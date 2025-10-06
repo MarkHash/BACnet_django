@@ -17,10 +17,6 @@ BAC0==23.7.3
 netifaces>=0.11.0; sys_platform != "win32"
 pyasyncore==1.0.4
 
-# Background Tasks & Caching
-celery==5.3.4
-django-celery-results==2.5.1
-redis>=4.5.0
 
 # Configuration & Environment
 python-dotenv==1.0.0
