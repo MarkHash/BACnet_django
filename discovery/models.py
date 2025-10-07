@@ -211,3 +211,38 @@ class DeviceStatusHistory(models.Model):
     def __str__(self):
         status = "Online" if self.is_online else "Offline"
         return f"{self.device} - {status} at {self.timestamp}"
+
+
+class VirtualBACnetDevice(models.Model):
+    """Virtual BACnet devices created by the server"""
+
+    # Core device info
+    device_id = models.IntegerField(
+        unique=True, help_text="BACnet device instance number (must be unique)"
+    )
+    device_name = models.CharField(
+        max_length=200, help_text="Human-readable device name"
+    )
+    description = models.TextField(
+        blank=True, help_text="Optional description of this virtual device"
+    )
+
+    # Network configuration
+    port = models.IntegerField(
+        default=47808, help_text="BACnet UDP port (default 47808)"
+    )
+
+    # Status tracking
+    is_running = models.BooleanField(
+        default=False, help_text="Whether the virtual device is currently running"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["device_id"]
+        verbose_name = "Virtual BACnet Device"
+        verbose_name_plural = "Virtual BACnet Devices"
+
+    def __str__(self):
+        return f"Virtual Device {self.device_id} - {self.device_name}"

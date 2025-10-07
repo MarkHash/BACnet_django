@@ -17,10 +17,11 @@ import logging
 from datetime import timedelta
 from typing import Any, Dict, List
 
+from django.contrib import messages
 from django.db.models import Avg, Count, FloatField, Max, Min
 from django.db.models.functions import Cast
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
@@ -33,11 +34,13 @@ from .exceptions import (
     DeviceNotFoundError,
     ValidationError,
 )
+from .forms import VirtualDeviceCreateForm
 from .models import (
     BACnetDevice,
     BACnetPoint,
 )
 from .services import BACnetService
+from .virtual_device_service import VirtualDeviceService
 
 
 def create_error_response(error: Exception, user_friendly: bool = True) -> JsonResponse:
@@ -478,3 +481,69 @@ def device_trends_api(request: HttpRequest, device_id: int) -> JsonResponse:
 
     except Http404:
         raise DeviceNotFoundAPIError()
+
+
+def virtual_device_list(request: HttpRequest) -> HttpResponse:
+    """List all virtual devices"""
+    devices = VirtualDeviceService.get_all_devices()
+
+    context = {
+        "virtual_devices": devices,
+        "total_devices": devices.count(),
+        "running_devices": devices.filter(is_running=True).count(),
+    }
+
+    return render(request, "discovery/virtual_device_list.html", context)
+
+
+def virtual_device_create(request: HttpRequest) -> HttpResponse:
+    """Create new virtual device"""
+    if request.method == "POST":
+        form = VirtualDeviceCreateForm(request.POST)
+        if form.is_valid():
+            try:
+                device = VirtualDeviceService.create_virtual_device(
+                    device_id=form.cleaned_data["device_id"],
+                    device_name=form.cleaned_data["device_name"],
+                    description=form.cleaned_data.get("description", ""),
+                    port=form.cleaned_data.get("port", 47808),
+                )
+
+                messages.success(
+                    request,
+                    f"Virtual device {device.device_id} created successfully! "
+                    f"It will start within 5 seconds if the server is running.",
+                )
+                return redirect("discovery:virtual_device_list")
+
+            except ValueError as e:
+                messages.error(request, str(e))
+
+    else:
+        form = VirtualDeviceCreateForm()
+
+    context = {"form": form}
+    return render(request, "discovery/virtual_device_create.html", context)
+
+
+@csrf_exempt
+def virtual_device_delete(request: HttpRequest, device_id: int) -> JsonResponse:
+    """Delete virtual device"""
+    if request.method == "POST":
+        success = VirtualDeviceService.delete_virtual_device(device_id)
+
+        if success:
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f"Virtual device {device_id} deleted successfully",
+                }
+            )
+        else:
+            return JsonResponse(
+                {"success": False, "message": f"Virtual device {device_id} not found"},
+                status=404,
+            )
+    return JsonResponse(
+        {"success": False, "message": "Invalid request method"}, status=400
+    )

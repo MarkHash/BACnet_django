@@ -1,0 +1,65 @@
+{% extend 'discovery/base.html' %}
+{% block title %}Virtual BACnet Devices{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Virtual BACnet Devices</h1>
+        <p class="text-muted">Create and manage virtual BACnet devices on your network</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 class="card-title">{{ total_devices }}</h3>
+                <p class="card-text">Total Virtual Devices</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3 class="card-title">{{ running_devices }}</h3>
+                <p class="card-text">Running Devices</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col">
+        <a href="{% url 'discovery:virtual_device_create' %}" class="btn btn-primary btn-lg">
+            ➕ Create Virtual Device
+        </a>
+        <a href="{% url 'discovery:dashboard' %}" class="btn btn-secondary btn-lg">
+            ← Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h5>Virtual Devices</h5>
+            </div>
+            <div class="card-body">
+                {% if virtual_devices %}
+                    <div class="table table-striped">
+                        <thread>
+                            <tr>
+                                <th>Device ID</th>
+                                <th>Device Name</th>
+                                <th>Port</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thread>
+                    </div>
+            </div>
+        </div>
+    </div>
+</div>

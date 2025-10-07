@@ -5,6 +5,7 @@ from .models import (
     BACnetPoint,
     BACnetReading,
     DeviceStatusHistory,
+    VirtualBACnetDevice,
 )
 
 
@@ -77,6 +78,13 @@ class BACnetReadingAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("point__device")
+
+
+@admin.register(VirtualBACnetDevice)
+class VirtualBACnetDeviceAdmin(admin.ModelAdmin):
+    list_display = ["device_id", "device_name", "port", "is_running", "created_at"]
+    list_filter = ["is_running"]
+    search_fields = ["device_id", "device_name"]
 
 
 admin.site.register(DeviceStatusHistory)

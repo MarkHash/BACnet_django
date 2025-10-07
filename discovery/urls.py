@@ -65,4 +65,19 @@ urlpatterns = [
         DeviceTrendsAPIView.as_view(),
         name="device-trends-api-v2",
     ),
+    path(
+        "virtual-devices/",
+        views.virtual_device_list,
+        name="virtual_device_list",
+    ),
+    path(
+        "virtual-devices/create/",
+        views.virtual_device_create,
+        name="virtual_device_create",
+    ),
+    path(
+        "api/virtual-devices/<int:device_id>/delete/",
+        views.virtual_device_delete,
+        name="virtual_device_delete",
+    ),
 ]
