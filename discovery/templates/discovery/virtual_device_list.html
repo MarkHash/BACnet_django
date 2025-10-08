@@ -1,4 +1,4 @@
-{% extend 'discovery/base.html' %}
+{% extends 'discovery/base.html' %}
 {% block title %}Virtual BACnet Devices{% endblock %}
 
 {% block content %}
@@ -47,19 +47,83 @@
             </div>
             <div class="card-body">
                 {% if virtual_devices %}
-                    <div class="table table-striped">
-                        <thread>
-                            <tr>
-                                <th>Device ID</th>
-                                <th>Device Name</th>
-                                <th>Port</th>
-                                <th>Status</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thread>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Device ID</th>
+                                    <th>Device Name</th>
+                                    <th>Port</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for device in virtual_devices %}
+                                <tr>
+                                    <td><strong>{{ device.device_id }}</strong></td>
+                                    <td>{{ device.device_name }}</td>
+                                    <td>{{ device.port }}</td>
+                                    <td>
+                                        {% if device.is_running %}
+                                        <span class="badge bg-success">Running</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary"> Stopped</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ device.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger delete-device-btn" data-device-id="{{ device.device_id }}" data-device-name="{{ device.device_name }}">🗑️ Delete</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <h5 class="text-muted">No virtual devices created yet</h5>
+                        <p class="text-muted">Create your first virtual BACnet device to get started</p>
+                        <a href="{% url 'discovery:virtual_device_create' %}" class="btn btn-primary">➕ Create Virtual Device</a>
+                    </div>
+                    {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.delete-device-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const deviceId = this.dataset.deviceId;
+                const deviceName = this.dataset.deviceName;
+
+                if (confirm(`Are you sure you want to delete virtual device ${deviceId} (${deviceName})?`)) {
+                    fetch(`/api/virtual-devices/${deviceId}/delete/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        alert('Error deleting device: ' + error);
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

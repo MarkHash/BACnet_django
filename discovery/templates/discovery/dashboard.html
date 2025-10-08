@@ -62,9 +62,13 @@
                     🗑️ Clear All Devices
                 </button>
 
-                <button id="refresh-btn" class="btn btn-secondary btn-lg">
+                <button id="refresh-btn" class="btn btn-secondary btn-lg me-3">
                     🔄 Refresh
                 </button>
+
+                <a href="{% url 'discovery:virtual_device_list' %}" class="btn btn-success btn-lg">
+                    🖥️ Manage Virtual Devices
+                </a>
 
                 <div class="mt-3">
                     <small class="text-muted">

@@ -845,7 +845,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <li><strong>Port 47809+:</strong> Use for additional virtual devices</li>
                     <li><strong>Discoverability:</strong> Devices on standard port (47808) are more easily discovered</li>
                     <li><strong>Server:</strong> Make sure <code>run_virtual_devices</code> management command is running</li>
-                </ul>
+                </ul>`
             </div>
         </div>
     </div>
