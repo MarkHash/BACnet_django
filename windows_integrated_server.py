@@ -51,7 +51,7 @@ from django.core.management import execute_from_command_line  # noqa: E402
 from django.db import connection  # noqa: E402
 
 from discovery.constants import BACnetConstants  # noqa: E402
-from discovery.services import BACnetService  # noqa: E402
+from discovery.services import get_unified_bacnet_service  # noqa: E402
 
 DISCOVERY_INTERVAL = 1800  # 30 minutes
 READINGS_INTERVAL = 300  # 5 minutes
@@ -61,7 +61,7 @@ ERROR_RETRY_INTERVAL = 60  # 1 minute
 
 def run_device_discovery():
     try:
-        service = BACnetService()
+        service = get_unified_bacnet_service()
         devices = service.discover_devices()
         print(f"✅ Discovery completed: {len(devices)} devices found")
 
@@ -73,7 +73,7 @@ def run_device_discovery():
 
 def run_collect_recordings():
     try:
-        service = BACnetService()
+        service = get_unified_bacnet_service()
         readings = service.collect_all_readings()
         print(f"✅ Readings completed: {len(readings)} readings collected")
         return True

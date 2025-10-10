@@ -1,12 +1,9 @@
 import json
-from datetime import timedelta
 from unittest.mock import ANY, Mock, patch
 
 from django.test import Client, RequestFactory
 from django.urls import reverse
-from django.utils import timezone
 
-from discovery.models import BACnetDevice
 from discovery.views import (
     _build_device_context,
     _organise_points_by_type,
@@ -133,10 +130,14 @@ class TestAPIViews(BaseTestCase):
         self.point = BACnetPointFactory(device=self.device)
 
     def test_start_discovery_post_success(self):
-        with patch("discovery.views.BACnetService") as mock_ensure:
+        with patch("django.apps.apps.get_app_config") as mock_app_config:
+            mock_app = Mock()
             mock_service = Mock()
-            mock_service.discover_devices.return_value = [{"deviceId": 123}]
-            mock_ensure.return_value = mock_service
+            mock_service.discover_devices.return_value = [
+                {"device_id": 123, "ip_address": "192.168.1.100", "port": 47808}
+            ]
+            mock_app.bacnet_service = mock_service
+            mock_app_config.return_value = mock_app
 
             response = self.client.post("/api/start-discovery/")
 
@@ -147,21 +148,20 @@ class TestAPIViews(BaseTestCase):
             mock_service.discover_devices.assert_called_once()
 
     def test_start_discovery_get_invalid(self):
-        with patch("discovery.views.BACnetService") as mock_ensure:
-            mock_service = Mock()
-            mock_ensure.return_value = mock_service
-            response = self.client.get("/api/start-discovery/")
+        response = self.client.get("/api/start-discovery/")
 
-            self.assertEqual(response.status_code, 200)
-            data = json.loads(response.content)
-            self.assertFalse(data["success"])
-            self.assertEqual(data["message"], "Invalid request")
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertFalse(data["success"])
+        self.assertEqual(data["message"], "Invalid request")
 
     def test_discover_device_points_success(self):
-        with patch("discovery.views.BACnetService") as mock_ensure:
+        with patch("django.apps.apps.get_app_config") as mock_app_config:
+            mock_app = Mock()
             mock_service = Mock()
             mock_service.discover_device_points.return_value = [Mock(), Mock()]
-            mock_ensure.return_value = mock_service
+            mock_app.bacnet_service = mock_service
+            mock_app_config.return_value = mock_app
 
             response = self.client.post(
                 f"/api/discover-points/{self.device.device_id}/"
@@ -176,7 +176,8 @@ class TestAPIViews(BaseTestCase):
             mock_service.discover_device_points.assert_called_once_with(ANY)
 
     def test_read_point_values_success(self):
-        with patch("discovery.views.BACnetService") as mock_ensure:
+        with patch("django.apps.apps.get_app_config") as mock_app_config:
+            mock_app = Mock()
             mock_service = Mock()
             # Mock the methods the view actually calls:
             mock_service._initialise_results.return_value = {
@@ -186,7 +187,8 @@ class TestAPIViews(BaseTestCase):
             mock_service._connect.return_value = True
             mock_service.read_device_points.return_value = None
             mock_service._disconnect.return_value = None
-            mock_ensure.return_value = mock_service
+            mock_app.bacnet_service = mock_service
+            mock_app_config.return_value = mock_app
 
             response = self.client.post(f"/api/read-values/{self.device.device_id}/")
 
@@ -216,115 +218,3 @@ class TestErrorHandling(BaseTestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertFalse(data["success"])
-
-
-class TestDeviceTrendsAPI(BaseTestCase):
-    def setUp(self):
-        super().setUp()
-        self.device = BACnetDeviceFactory(device_id=8001)
-        self.client = Client()
-
-    def test_device_trends_success(self):
-        """Test successful device trends API call"""
-        response = self.client.get(
-            f"/api/devices/{self.device.device_id}/analytics/trends/?period=24hours"
-        )
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
-        self.assertTrue(data["success"])
-        self.assertEqual(data["device_id"], self.device.device_id)
-        self.assertEqual(data["period"], "24hours")
-
-    def test_device_trends_invalid_period(self):
-        """Test device trends API call with invalid period parameter"""
-        response = self.client.get(
-            f"/api/devices/{self.device.device_id}/analytics/trends/?period=invalid"
-        )
-        self.assertEqual(response.status_code, 400)
-        data = json.loads(response.content)
-        self.assertFalse(data["success"])
-        self.assertEqual(data["error"]["code"], "VALIDATION_ERROR")
-        self.assertIn("Invalid period", data["error"]["message"])
-
-    def test_device_trends_nonexistent_device(self):
-        """Test device trends API call with non-existent device ID"""
-        response = self.client.get("/api/devices/999/analytics/trends/")
-        self.assertEqual(response.status_code, 404)
-        data = json.loads(response.content)
-        self.assertFalse(data["success"])
-        self.assertEqual(data["error"]["code"], "DEVICE_NOT_FOUND")
-
-
-class TestDeviceStatusAPI(BaseTestCase):
-    def setUp(self):
-        super().setUp()
-        self.client = Client()
-
-        self.online_device = BACnetDeviceFactory(
-            device_id=1001,
-            is_online=True,
-            last_seen=timezone.now() - timedelta(minutes=5),
-        )
-        self.offline_device = BACnetDeviceFactory(
-            device_id=1002,
-            is_online=False,
-            last_seen=timezone.now() - timedelta(hours=2),
-        )
-        self.stale_device = BACnetDeviceFactory(
-            device_id=1003,
-            is_online=True,
-            last_seen=timezone.now() - timedelta(hours=2),
-        )
-
-        BACnetPointFactory(device=self.online_device, present_value="25.5")
-        BACnetPointFactory(device=self.stale_device, present_value="22.1")
-
-    def test_devices_status_success(self):
-        """Test successful device status API call"""
-        response = self.client.get("/api/devices/status/")
-        self.assertEqual(response.status_code, 200)
-
-        data = json.loads(response.content)
-        self.assertTrue(data["success"])
-        self.assertIn("summary", data)
-        self.assertIn("devices", data)
-        self.assertIn("timestamp", data)
-
-        summary = data["summary"]
-        self.assertIn("total_devices", summary)
-        self.assertIn("online_devices", summary)
-        self.assertIn("offline_devices", summary)
-        self.assertIn("stale_devices", summary)
-        self.assertIn("no_data_devices", summary)
-
-        devices = data["devices"]
-        self.assertGreater(len(devices), 0)
-
-        device = devices[0]
-        self.assertIn("device_id", device)
-        self.assertIn("address", device)
-        self.assertIn("statistics", device)
-
-        stats = device["statistics"]
-        self.assertIn("total_points", stats)
-        self.assertIn("readable_points", stats)
-        self.assertIn("points_with_values", stats)
-        self.assertIn("device_status", stats)
-        self.assertIn("last_reading_time", stats)
-
-    def test_devices_status_empty_database(self):
-        """Test device status API with no devices"""
-        BACnetDevice.objects.all().delete()
-
-        response = self.client.get("/api/devices/status/")
-        self.assertEqual(response.status_code, 200)
-
-        data = json.loads(response.content)
-        self.assertTrue(data["success"])
-        self.assertEqual(data["summary"]["total_devices"], 0)
-        self.assertEqual(len(data["devices"]), 0)
-
-    def test_devices_status_http_method_validation(self):
-        """Test that device status API only accepts GET requests"""
-        response = self.client.post("/api/devices/status/")
-        self.assertEqual(response.status_code, 200)

@@ -14,32 +14,28 @@ Core Features:
 """
 
 import logging
-from datetime import timedelta
 from typing import Any, Dict, List
 
+from django.apps import apps
 from django.contrib import messages
-from django.db.models import Avg, Count, FloatField, Max, Min
-from django.db.models.functions import Cast
-from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.db.models import Count
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from .constants import BACnetConstants
-from .decorators import api_error_handler, api_rate_limit
 from .exceptions import (
     BACnetError,
     ConfigurationError,
-    DeviceNotFoundAPIError,
     DeviceNotFoundError,
-    ValidationError,
 )
 from .forms import VirtualDeviceCreateForm
 from .models import (
     BACnetDevice,
     BACnetPoint,
 )
-from .services import BACnetService
+
+# Legacy BACnetService import removed - using unified service
 from .virtual_device_service import VirtualDeviceService
 
 
@@ -126,7 +122,10 @@ def read_device_point_values(request: HttpRequest, device_id: int) -> JsonRespon
         try:
             device = get_object_or_404(BACnetDevice, device_id=device_id)
             logger.debug(f"device_ID: {device.device_id}")
-            service = BACnetService()
+
+            # Use unified service
+            discovery_app = apps.get_app_config("discovery")
+            service = discovery_app.bacnet_service
 
             results = service._initialise_results()
             if service._connect():
@@ -159,7 +158,10 @@ def discover_device_points(request: HttpRequest, device_id: int) -> JsonResponse
         try:
             device = get_object_or_404(BACnetDevice, device_id=device_id)
             logger.debug(f"device_ID: {device.device_id}")
-            service = BACnetService()
+
+            # Use unified service
+            discovery_app = apps.get_app_config("discovery")
+            service = discovery_app.bacnet_service
             point_list = service.discover_device_points(device)
 
             if point_list is not None:
@@ -193,28 +195,36 @@ def discover_device_points(request: HttpRequest, device_id: int) -> JsonResponse
 def start_discovery(request: HttpRequest) -> JsonResponse:
     if request.method == "POST":
         try:
-            logger.debug("ensure_bacnet_client")
-            service = BACnetService()
-            devices = service.discover_devices()
+            discovery_app = apps.get_app_config("discovery")
+            bacnet_service = discovery_app.bacnet_service
 
-            if devices is not None:
-                return JsonResponse(
+            devices = bacnet_service.discover_devices()
+
+            # Convert to legacy format for API compatibility
+            legacy_devices = []
+            for device in devices:
+                legacy_devices.append(
                     {
-                        "success": True,
-                        "message": f"Device discovery completed with"
-                        f" {len(devices)} devices",
+                        "deviceId": device["device_id"],
+                        "address": device["ip_address"],
+                        "vendorId": 842,  # Default BAC0 vendor ID
                     }
                 )
-            else:
-                return JsonResponse(
-                    {
-                        "success": True,
-                        "message": "Device discovery failed",
-                    }
-                )
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f"Found {len(devices)} devices",
+                    "devices": legacy_devices,
+                }
+            )
         except Exception as e:
-            logger.error(f"Error: {e}")
-            return JsonResponse({"success": False, "message": str(e)})
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": f"Discovery failed: {str(e)}",
+                }
+            )
 
     return JsonResponse({"success": False, "message": "Invalid request"})
 
@@ -235,7 +245,9 @@ def read_single_point_value(
                 object_type=object_type,
                 instance_number=instance_number,
             )
-            service = BACnetService()
+            # Use unified service
+            discovery_app = apps.get_app_config("discovery")
+            service = discovery_app.bacnet_service
             value = service.read_point_value(device, point)
 
             return JsonResponse(
@@ -315,172 +327,6 @@ def clear_devices(request: HttpRequest) -> JsonResponse:
             )
 
     return JsonResponse({"success": False, "message": "Invalid request"})
-
-
-@api_rate_limit(rate="200/h", method=["GET", "POST"])
-@api_error_handler
-@csrf_exempt
-def devices_status_api(request: HttpRequest) -> JsonResponse:
-    """
-    GET /api/devices/status/ - All devices overview
-    """
-
-    try:
-        device_info = []
-        active_devices = BACnetDevice.objects.filter(is_active=True)
-        for device in active_devices:
-            device_status = "online"
-            total_points = device.points.count()
-            if device.last_seen:
-                time_since_reading = (timezone.now() - device.last_seen).total_seconds()
-            else:
-                time_since_reading = 365 * 24 * 60 * 60
-
-            if device.is_online is True:
-                if total_points == 0:
-                    device_status = "no_data"
-                elif time_since_reading > BACnetConstants.STALE_THRESHOLD_SECONDS:
-                    device_status = "stale"
-            else:
-                if time_since_reading > (7 * 24 * 60 * 60):
-                    continue
-                device_status = "offline"
-
-            all_points = device.points.all()
-            readable_points = len([p for p in all_points if p.is_readable])
-            points_with_values = device.points.filter(
-                present_value__isnull=False
-            ).count()
-
-            device_info.append(
-                {
-                    "device_id": device.device_id,
-                    "address": device.address,
-                    "statistics": {
-                        "total_points": total_points,
-                        "readable_points": readable_points,
-                        "points_with_values": points_with_values,
-                        "device_status": device_status,
-                        "last_reading_time": device.last_seen,
-                    },
-                }
-            )
-        return JsonResponse(
-            {
-                "success": True,
-                "summary": {
-                    "total_devices": len(device_info),
-                    "online_devices": len(
-                        [
-                            d
-                            for d in device_info
-                            if d["statistics"]["device_status"] == "online"
-                        ]
-                    ),
-                    "offline_devices": len(
-                        [
-                            d
-                            for d in device_info
-                            if d["statistics"]["device_status"] == "offline"
-                        ]
-                    ),
-                    "stale_devices": len(
-                        [
-                            d
-                            for d in device_info
-                            if d["statistics"]["device_status"] == "stale"
-                        ]
-                    ),
-                    "no_data_devices": len(
-                        [
-                            d
-                            for d in device_info
-                            if d["statistics"]["device_status"] == "no_data"
-                        ]
-                    ),
-                },
-                "devices": device_info,
-                "timestamp": timezone.now().isoformat(),
-            }
-        )
-    except Http404:
-        raise DeviceNotFoundAPIError()
-
-
-@api_rate_limit(rate="100/h", method=["GET", "POST"])
-@api_error_handler
-def device_trends_api(request: HttpRequest, device_id: int) -> JsonResponse:
-    """
-    GET /api/devices/{id}/analytics/trends/
-    ?period=24hours&points=analogInput:100,analogInput:101
-    Returns historical data trends for specific device points
-    """
-
-    try:
-        device = get_object_or_404(BACnetDevice, device_id=device_id)
-        all_points = device.points.all()
-        period = request.GET.get("period", "24hours")
-        if period not in BACnetConstants.PERIOD_PARAMETERS:
-            raise ValidationError(
-                f"Invalid period '{period}'. Valid options: "
-                f"{list(BACnetConstants.PERIOD_PARAMETERS.keys())}"
-            )
-        start_time = timezone.now() - timedelta(
-            hours=BACnetConstants.PERIOD_PARAMETERS[period]
-        )
-        points_param = request.GET.get("points", "")
-        if points_param:
-            points_list = points_param.split(",")
-            points = all_points.filter(identifier__in=points_list)
-        else:
-            points = all_points
-
-        points_info = []
-
-        for point in points:
-            readings = point.readings.filter(read_time__gte=start_time)
-            stats = readings.aggregate(
-                min_value=Min(Cast("value", FloatField())),
-                max_value=Max(Cast("value", FloatField())),
-                avg_value=Avg(Cast("value", FloatField())),
-                count=Count("id"),
-            )
-            points_info.append(
-                {
-                    "point_identifier": point.identifier,
-                    "readings": [
-                        {
-                            "timestamp": r.read_time.isoformat(),
-                            "value": float(r.value) if r.value else None,
-                        }
-                        for r in readings.order_by("read_time")
-                    ],
-                    "statistics": {
-                        "min": (
-                            round(stats["min_value"], 2) if stats["min_value"] else None
-                        ),
-                        "max": (
-                            round(stats["max_value"], 2) if stats["max_value"] else None
-                        ),
-                        "avg": (
-                            round(stats["avg_value"], 2) if stats["avg_value"] else None
-                        ),
-                        "count": stats["count"],
-                    },
-                }
-            )
-
-        return JsonResponse(
-            {
-                "success": True,
-                "device_id": device_id,
-                "period": period,
-                "points": points_info,
-            }
-        )
-
-    except Http404:
-        raise DeviceNotFoundAPIError()
 
 
 def virtual_device_list(request: HttpRequest) -> HttpResponse:

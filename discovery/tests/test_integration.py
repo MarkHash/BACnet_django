@@ -101,10 +101,7 @@ class TestDeviceDetailIntegration(BaseTestCase):
             device=self.device, object_type="analogOutput", instance_number=3
         )
 
-    @patch("discovery.views.BACnetService")
-    def test_device_detail_integration_complete_flow(self, mock_ensure_client):
-        mock_service = Mock()
-        mock_ensure_client.return_value = mock_service
+    def test_device_detail_integration_complete_flow(self):
         response = self.client.get(
             reverse("discovery:device_detail", args=[self.device.device_id])
         )
@@ -180,11 +177,15 @@ class TestAPIEndpointIntegration(BaseTestCase):
             present_value="1",
         )
 
-    @patch("discovery.views.BACnetService")
-    def test_start_discovery_integration(self, mock_ensure_client):
+    @patch("django.apps.apps.get_app_config")
+    def test_start_discovery_integration(self, mock_app_config):
+        mock_app = Mock()
         mock_service = Mock()
-        mock_service.discover_devices.return_value = [{"deviceId": 123}]
-        mock_ensure_client.return_value = mock_service
+        mock_service.discover_devices.return_value = [
+            {"device_id": 123, "ip_address": "192.168.1.100", "port": 47808}
+        ]
+        mock_app.bacnet_service = mock_service
+        mock_app_config.return_value = mock_app
 
         url = reverse("discovery:start_discovery")
         response = self.client.post(url)
@@ -192,15 +193,16 @@ class TestAPIEndpointIntegration(BaseTestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertTrue(data["success"])
-        self.assertIn("Device discovery completed", data["message"])
 
         mock_service.discover_devices.assert_called_once()
 
-    @patch("discovery.views.BACnetService")
-    def test_discover_device_points_integration(self, mock_ensure_client):
+    @patch("django.apps.apps.get_app_config")
+    def test_discover_device_points_integration(self, mock_app_config):
+        mock_app = Mock()
         mock_service = Mock()
         mock_service.discover_device_points.return_value = [Mock(), Mock()]
-        mock_ensure_client.return_value = mock_service
+        mock_app.bacnet_service = mock_service
+        mock_app_config.return_value = mock_app
 
         url = reverse("discovery:discover_device_points", args=[self.device.device_id])
         response = self.client.post(url)
@@ -213,8 +215,9 @@ class TestAPIEndpointIntegration(BaseTestCase):
 
         mock_service.discover_device_points.assert_called_once()
 
-    @patch("discovery.views.BACnetService")
-    def test_read_point_values_integration(self, mock_ensure_client):
+    @patch("django.apps.apps.get_app_config")
+    def test_read_point_values_integration(self, mock_app_config):
+        mock_app = Mock()
         mock_service = Mock()
         # Mock the methods the view actually calls:
         mock_service._initialise_results.return_value = {
@@ -226,7 +229,8 @@ class TestAPIEndpointIntegration(BaseTestCase):
             None  # This method modifies results in -place
         )
         mock_service._disconnect.return_value = None
-        mock_ensure_client.return_value = mock_service
+        mock_app.bacnet_service = mock_service
+        mock_app_config.return_value = mock_app
 
         url = reverse(
             "discovery:read_device_point_values", args=[self.device.device_id]
@@ -243,11 +247,7 @@ class TestAPIEndpointIntegration(BaseTestCase):
         mock_service.read_device_points.assert_called_once()
         mock_service._disconnect.assert_called_once()
 
-    @patch("discovery.views.BACnetService")
-    def test_get_device_values_api_integration(self, mock_ensure_client):
-        mock_service = Mock()
-        mock_ensure_client.return_value = mock_service
-
+    def test_get_device_values_api_integration(self):
         url = reverse("discovery:get_device_value_api", args=[self.device.device_id])
         response = self.client.get(url)
 

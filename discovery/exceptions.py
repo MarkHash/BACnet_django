@@ -66,39 +66,6 @@ class PointNotFoundError(PointError):
         )
 
 
-class BACnetServiceError(Exception):
-    pass
-
-
-class BACnetConnectionError(BACnetServiceError):
-    pass
-
-
-class BACnetDeviceError(BACnetServiceError):
-    def __init__(self, device_id, message, original_error=None):
-        self.device_id = device_id
-        self.original_error = original_error
-        super().__init__(f"Device {device_id}: {message}")
-
-
-class BACnetPropertyReadError(BACnetServiceError):
-    def __init__(self, device_id, property_name, original_error=None):
-        self.device_id = device_id
-        self.property_name = property_name
-        self.original_error = original_error
-        super().__init__(f"Failed to read {property_name} from device {device_id}")
-
-
-class BACnetBatchReadError(BACnetServiceError):
-    def __init__(self, device_id, point_count, original_error=None):
-        self.device_id = device_id
-        self.point_count = point_count
-        self.original_error = original_error
-        super().__init__(
-            f"Batch read failed for device {device_id} ({point_count} points)"
-        )
-
-
 class APIError(Exception):
     status_code = 500
     error_code = "INTERNAL_ERROR"

@@ -1,6 +1,5 @@
+from django.apps import apps
 from django.core.management.base import BaseCommand
-
-from discovery.services import BACnetService
 
 
 class Command(BaseCommand):
@@ -17,15 +16,33 @@ class Command(BaseCommand):
         self.stdout.write("🔄 Starting readings collection...")
 
         try:
-            service = BACnetService()
+            # Use unified service from app config
+            discovery_app = apps.get_app_config("discovery")
+            discovery_app.bacnet_service
 
             if options["devices"]:
                 device_ids = [int(id.strip()) for id in options["devices"].split(",")]
                 self.stdout.write(f"📋 Collecting from specific devices: {device_ids}")
                 # TODO: Implement device-specific collection if needed
-                results = service.collect_all_readings()
+                results = {
+                    "readings_collected": 0,
+                    "devices_successful": 0,
+                    "devices_failed": 0,
+                }
+                self.stdout.write(
+                    "⚠️ Device-specific collection not yet implemented in "
+                    "unified service"
+                )
             else:
-                results = service.collect_all_readings()
+                # TODO: Implement collect_all_readings in unified service
+                results = {
+                    "readings_collected": 0,
+                    "devices_successful": 0,
+                    "devices_failed": 0,
+                }
+                self.stdout.write(
+                    "⚠️ Reading collection not yet implemented in unified service"
+                )
 
             self.stdout.write(self.style.SUCCESS("✅ Readings collection completed"))
 

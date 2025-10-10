@@ -1,6 +1,5 @@
+from django.apps import apps
 from django.core.management.base import BaseCommand
-
-from discovery.services import BACnetService
 
 
 class Command(BaseCommand):
@@ -17,13 +16,16 @@ class Command(BaseCommand):
         self.stdout.write("🔍 Starting device discovery...")
 
         try:
-            service = BACnetService()
+            # Use unified service from app config
+            discovery_app = apps.get_app_config("discovery")
+            service = discovery_app.bacnet_service
             mock_mode = options.get("mock", False)
 
             if mock_mode:
-                self.stdout.write("⚠️ Using mock mode")
-
-            devices = service.discover_devices(mock_mode=mock_mode)
+                self.stdout.write("⚠️ Mock mode not yet supported in unified service")
+                devices = []
+            else:
+                devices = service.discover_devices()
 
             if devices is not None:
                 self.stdout.write(
@@ -33,15 +35,18 @@ class Command(BaseCommand):
                 )
 
                 for device_info in devices:
-                    self.stdout.write(
-                        f"📡 Found device: {device_info[1]} at {device_info[0]}"
-                    )
+                    if isinstance(device_info, dict):
+                        device_id = device_info.get("device_id")
+                        ip_addr = device_info.get("ip_address")
+                        self.stdout.write(f"📡 Found device: {device_id} at {ip_addr}")
+                    else:
+                        self.stdout.write(f"📡 Found device: {device_info}")
             else:
                 self.stdout.write(
                     self.style.WARNING("⚠️ Device discovery returned no results")
                 )
 
-            return f"Completed: {len(devices) if devices else 0} evices found"
+            return f"Completed: {len(devices) if devices else 0} devices found"
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Device discovery failed: {e}"))
