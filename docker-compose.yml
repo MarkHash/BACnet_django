@@ -31,6 +31,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=${DATABASE_URL}
       - DJANGO_SETTINGS_MODULE=bacnet_project.docker_settings
+      - BACNET_API_URL=http://host.docker.internal:5001
     depends_on:
       db:
         condition: service_healthy

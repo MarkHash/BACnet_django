@@ -32,6 +32,7 @@ Usage:
 import asyncio
 import logging
 import os
+import platform
 from contextlib import asynccontextmanager
 from typing import Dict, List, Optional
 
@@ -75,6 +76,52 @@ bacnet_instance = None
 discovered_devices_cache = {}
 running_virtual_devices = {}
 virtual_device_points = {}
+
+
+# ==================== Helper Functions ====================
+
+
+def get_bacnet_ip() -> str:
+    """
+    Get BACnet interface IP based on operating system or environment variable.
+
+    Priority:
+    1. BACNET_INTERFACE_IP environment variable (manual override)
+    2. Auto-detect based on OS:
+       - macOS (Darwin) -> 192.168.1.101/24 (home)
+       - Windows -> 192.168.1.5/24 (office)
+
+    Returns:
+        str: IP address with CIDR notation (e.g., "192.168.1.101/24")
+
+    Raises:
+        RuntimeError: If unsupported OS and no environment variable set
+    """
+    # Check environment variable first (manual override)
+    env_ip = os.getenv("BACNET_INTERFACE_IP")
+    if env_ip:
+        logger.info(f"🌐 Using BACnet IP from environment: {env_ip}")
+        return env_ip
+
+    # Auto-detect based on OS
+    system = platform.system()
+
+    if system == "Darwin":  # macOS
+        ip = "192.168.1.101/24"
+        logger.info(f"🍎 Detected macOS - Using home network: {ip}")
+        return ip
+
+    elif system == "Windows":  # Windows
+        ip = "192.168.1.5/24"
+        logger.info(f"🪟 Detected Windows - Using office network: {ip}")
+        return ip
+
+    else:  # Linux or other
+        logger.error(f"❌ Unsupported platform: {system}")
+        raise RuntimeError(
+            f"Unsupported platform: {system}. "
+            f"Please set BACNET_INTERFACE_IP environment variable."
+        )
 
 
 # ==================== Pydantic Models ====================
@@ -136,8 +183,11 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         # Main instance is BOTH a client AND a device
+        # Get IP based on OS or environment variable
+        bacnet_ip = get_bacnet_ip()
+
         bacnet_instance = BAC0.lite(
-            deviceId=1000, localObjName="BACnet API Device", port=47808
+            ip=bacnet_ip, deviceId=1000, localObjName="BACnet API Device", port=47808
         )
         logger.info(
             f"✅ BAC0 started as device 1000 on {bacnet_instance.localIPAddr}:47808"
@@ -472,9 +522,11 @@ async def create_virtual_device(request: VirtualDeviceCreate):
         )
 
         # Start virtual BACnet device
-        # Note: Don't specify IP - BAC0 will reuse the network interface
-        # with different port
+        # Get IP based on OS or environment variable
+        bacnet_ip = get_bacnet_ip()
+
         bacnet_device = BAC0.lite(
+            ip=bacnet_ip,
             deviceId=device.device_id,
             port=device.port,
             localObjName=device.device_name,
@@ -721,9 +773,11 @@ async def sync_virtual_devices():
         for device in devices_to_run:
             if device.device_id not in running_virtual_devices:
                 try:
-                    # Note: Don't specify IP - BAC0 will reuse the network
-                    # interface with different port
+                    # Get IP based on OS or environment variable
+                    bacnet_ip = get_bacnet_ip()
+
                     bacnet_device = BAC0.lite(
+                        ip=bacnet_ip,
                         deviceId=device.device_id,
                         port=device.port,
                         localObjName=device.device_name,

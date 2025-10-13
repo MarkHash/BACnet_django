@@ -19,3 +19,10 @@ python-dotenv>=1.0.0
 
 # HTTP requests
 requests>=2.31.0
+
+# Django REST Framework and related packages
+djangorestframework>=3.14.0
+drf-spectacular>=0.26.0
+
+# CORS support
+django-cors-headers>=4.0.0
