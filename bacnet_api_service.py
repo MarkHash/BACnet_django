@@ -237,7 +237,46 @@ async def health_check():
 async def discover_devices():
     """Discover BACnet devices on network"""
     try:
-        devices = bacnet_instance.discover()
+        # Trigger Who-Is broadcast
+        bacnet_instance.discover()
+
+        # Wait for I-Am responses (BACnet devices need time to respond)
+        logger.info("⏳ Waiting 5 seconds for device responses...")
+        await asyncio.sleep(5)
+
+        # Get discovered devices from BAC0's known_devices or device info cache
+        devices = []
+
+        # Access device_info_cache directly through this_application
+        # The DeviceInfoCache logs show devices are being registered there
+        try:
+            if hasattr(bacnet_instance, "this_application"):
+                app = bacnet_instance.this_application
+                if hasattr(app, "device_info_cache"):
+                    cache = app.device_info_cache
+                    logger.info("DEBUG: Accessing device_info_cache")
+
+                    # The cache is a dict-like object
+                    if hasattr(cache, "__iter__"):
+                        for device_key in cache:
+                            device_info = cache[device_key]
+                            logger.info(
+                                f"DEBUG: Found device_key={device_key}, "
+                                f"info={device_info}"
+                            )
+
+                            # Extract device ID and address
+                            if hasattr(device_info, "device_identifier"):
+                                device_id = device_info.device_identifier[1]
+                                address = str(device_info.address)
+                                # Remove port if present
+                                # (e.g., "192.168.1.207:47808" -> "192.168.1.207")
+                                if ":" in address:
+                                    address = address.split(":")[0]
+                                devices.append((address, device_id))
+                                logger.info(f"✅ Found device {device_id} at {address}")
+        except Exception as e:
+            logger.error(f"Error accessing device_info_cache: {e}", exc_info=True)
 
         # Handle None or empty result
         if not devices:
