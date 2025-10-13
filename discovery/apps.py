@@ -1,5 +1,3 @@
-import atexit
-
 from django.apps import AppConfig
 
 
@@ -8,22 +6,24 @@ class DiscoveryConfig(AppConfig):
     name = "discovery"
 
     def ready(self):
-        """Initialize unified BACnet service when Django starts."""
+        """Initialize BACnet API service when Django starts."""
         try:
-            from .services.unified_bacnet_service import get_unified_bacnet_service
+            from .services.api_bacnet_service import get_api_bacnet_service
 
-            if not hasattr(self, "_bacnet_service_started"):
-                self.bacnet_service = get_unified_bacnet_service()
-                self.bacnet_service.start_service()
-                self._bacnet_service_started = True
+            if not hasattr(self, "_bacnet_service_initialized"):
+                # Initialize API-based service (no background thread needed)
+                self.bacnet_service = get_api_bacnet_service()
+                self._bacnet_service_initialized = True
 
-                # Register cleanup on Django shutdown
-                atexit.register(self.cleanup_bacnet_service)
-        except ImportError:
-            # Handle case where unified service isn't available yet
-            pass
+                # Log service initialization
+                import logging
 
-    def cleanup_bacnet_service(self):
-        """Clean up BACnet service on shutdown."""
-        if hasattr(self, "bacnet_service"):
-            self.bacnet_service.stop_service()
+                logger = logging.getLogger(__name__)
+                logger.info("BACnet API service initialized (uses HTTP API client)")
+
+        except ImportError as e:
+            # Handle case where service isn't available yet
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"BACnet API service not available: {e}")

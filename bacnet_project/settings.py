@@ -120,11 +120,11 @@ WSGI_APPLICATION = "bacnet_project.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST", "localhost"),
-        "PORT": os.getenv("DB_PORT", "5432"),
+        "NAME": os.getenv("POSTGRES_DB") or os.getenv("DB_NAME"),
+        "USER": os.getenv("POSTGRES_USER") or os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD") or os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("POSTGRES_HOST") or os.getenv("DB_HOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT") or os.getenv("DB_PORT", "5432"),
     }
 }
 
@@ -222,3 +222,7 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ],
 }
+
+# BACnet API Service Configuration
+# Django in Docker connects to BACnet API service on host
+BACNET_API_URL = os.getenv("BACNET_API_URL", "http://localhost:5001")

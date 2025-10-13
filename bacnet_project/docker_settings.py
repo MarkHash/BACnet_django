@@ -59,3 +59,7 @@ LOGGING = {
         },
     },
 }
+
+# BACnet API Service Configuration
+# Django in Docker connects to BACnet API service on Windows host
+BACNET_API_URL = os.getenv("BACNET_API_URL", "http://host.docker.internal:5001")

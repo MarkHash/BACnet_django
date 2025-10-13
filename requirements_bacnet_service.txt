@@ -1,0 +1,21 @@
+# BACnet API Service Dependencies
+# FastAPI service for BACnet operations
+# Note: Uses compatible versions with Windows (no Rust required)
+
+# FastAPI framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+pydantic>=2.0.0
+
+# BACnet protocol library (needs 2025+ for factory pattern)
+BAC0>=2025.9.15
+
+# Django for database access (already installed in main env)
+django>=5.2.0
+psycopg2-binary>=2.9.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# HTTP requests
+requests>=2.31.0
