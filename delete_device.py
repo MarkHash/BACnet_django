@@ -7,7 +7,7 @@ import django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bacnet_project.settings")
 django.setup()
 
-from discovery.models import VirtualBACnetDevice
+from discovery.models import VirtualBACnetDevice  # noqa: E402
 
 # Delete device 1001
 deleted_count, _ = VirtualBACnetDevice.objects.filter(device_id=1001).delete()

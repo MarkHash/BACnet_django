@@ -1,8 +1,8 @@
 """
 API-Based BACnet Service
 
-This service communicates with the BACnet API service (FastAPI) running on the host network.
-It replaces direct BAC0 usage with HTTP API calls.
+This service communicates with the BACnet API service (FastAPI) running on
+the host network. It replaces direct BAC0 usage with HTTP API calls.
 
 Architecture:
     Django Views → ApiBACnetService → BACnetAPIClient (HTTP) → BACnet API Service → BAC0

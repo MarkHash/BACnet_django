@@ -32,10 +32,12 @@ Usage:
 import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
 from typing import Dict, List, Optional
 
 # BACnet imports
 import BAC0
+from asgiref.sync import sync_to_async
 from BAC0.core.devices.local import factory
 
 # FastAPI imports
@@ -53,11 +55,11 @@ multistate_value = factory.multistate_value
 
 # Django setup for database access
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bacnet_project.settings")
-import django
+import django  # noqa: E402
 
 django.setup()
 
-from discovery.models import VirtualBACnetDevice
+from discovery.models import VirtualBACnetDevice  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
@@ -125,10 +127,6 @@ class VirtualDevicePointCreate(BaseModel):
 
 
 # ==================== Startup/Shutdown Events ====================
-
-from contextlib import asynccontextmanager
-
-from asgiref.sync import sync_to_async
 
 
 @asynccontextmanager
@@ -348,7 +346,10 @@ async def discover_device_points(device_id: int):
 async def read_point(request: PointReadRequest):
     """Read a single BACnet point value"""
     try:
-        address = f"{request.ip_address} {request.object_type} {request.instance_number} presentValue"
+        address = (
+            f"{request.ip_address} {request.object_type} "
+            f"{request.instance_number} presentValue"
+        )
         value = bacnet_instance.read(address)
 
         logger.info(
@@ -432,14 +433,18 @@ async def create_virtual_device(request: VirtualDeviceCreate):
         )
 
         # Start virtual BACnet device
-        # Note: Don't specify IP - BAC0 will reuse the network interface with different port
+        # Note: Don't specify IP - BAC0 will reuse the network interface
+        # with different port
         bacnet_device = BAC0.lite(
-            deviceId=device.device_id, port=device.port, localObjName=device.device_name
+            deviceId=device.device_id,
+            port=device.port,
+            localObjName=device.device_name,
         )
         running_virtual_devices[device.device_id] = bacnet_device
 
         logger.info(
-            f"✅ Virtual device {device.device_id} created and started on port {device.port}"
+            f"✅ Virtual device {device.device_id} created and started "
+            f"on port {device.port}"
         )
 
         return VirtualDeviceResponse(
@@ -637,7 +642,8 @@ async def add_virtual_device_point(device_id: int, request: VirtualDevicePointCr
         virtual_device_points[device_id].append(point_obj)
 
         logger.info(
-            f"✅ Added {request.object_type}:{request.instance_number} to device {device_id}"
+            f"✅ Added {request.object_type}:{request.instance_number} "
+            f"to device {device_id}"
         )
 
         return {
@@ -676,7 +682,8 @@ async def sync_virtual_devices():
         for device in devices_to_run:
             if device.device_id not in running_virtual_devices:
                 try:
-                    # Note: Don't specify IP - BAC0 will reuse the network interface with different port
+                    # Note: Don't specify IP - BAC0 will reuse the network
+                    # interface with different port
                     bacnet_device = BAC0.lite(
                         deviceId=device.device_id,
                         port=device.port,
@@ -684,7 +691,8 @@ async def sync_virtual_devices():
                     )
                     running_virtual_devices[device.device_id] = bacnet_device
                     logger.info(
-                        f"✅ Virtual device {device.device_id} started on port {device.port}"
+                        f"✅ Virtual device {device.device_id} started "
+                        f"on port {device.port}"
                     )
                 except Exception as e:
                     logger.error(
