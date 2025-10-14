@@ -20,6 +20,24 @@ A streamlined Django web application focused on core BACnet building automation 
 - **Device Status History**: Monitor device connectivity and performance
 - **Basic Dashboard**: Simple web interface for device management
 
+## 📸 Screenshots
+
+### Dashboard
+![Dashboard](docs/images/dashboard.png)
+*Main dashboard showing device overview, discovery controls, and quick actions*
+
+### Device Detail
+![Device Detail](docs/images/device-detail.png)
+*Device detail page with point listings and real-time value readings*
+
+### Virtual Devices
+![Virtual Devices](docs/images/virtual-devices.png)
+*Virtual device management interface (Beta feature)*
+
+### Virtual Device Creation
+![Virtual Device Creation](docs/images/virtual-device-creation.png)
+*Create virtual BACnet devices for testing purposes*
+
 ## 📋 Quick Start
 
 ### Linux/Mac (Docker)
