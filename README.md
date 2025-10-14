@@ -30,12 +30,12 @@ docker-compose up -d
 ```
 **Access**: http://127.0.0.1:8000
 
-### Windows (Database only)
+### Windows (Integrated server)
 ```bash
 git clone <repository-url>
 cd BACnet_django
 docker-compose -f docker-compose.windows.yml up -d
-python manage.py runserver
+python windows_integrated_server.py
 ```
 **Access**: http://127.0.0.1:8000
 
