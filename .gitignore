@@ -60,6 +60,7 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+staticfiles/
 
 # Flask stuff:
 instance/
@@ -147,6 +148,7 @@ venv.bak/
 
 # Node.js dependencies
 node_modules/
+coverage/
 
 # Spyder project settings
 .spyderproject
