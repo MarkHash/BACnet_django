@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import BACnetDevice, BACnetPoint
+from .models import (
+    BACnetDevice,
+    BACnetPoint,
+    BACnetReading,
+    DeviceStatusHistory,
+    VirtualBACnetDevice,
+)
 
 
 # Register your models here.
@@ -28,7 +34,13 @@ class BACnetDeviceAdmin(admin.ModelAdmin):
 
 @admin.register(BACnetPoint)
 class BACnetPointAdmin(admin.ModelAdmin):
-    list_display = ["identifier", "device", "object_type", "instance_number", "created"]
+    list_display = [
+        "identifier",
+        "device",
+        "object_type",
+        "instance_number",
+        "created",
+    ]
     list_filter = ["object_type", "device"]
     search_fields = ["identifier", "object_name", "description"]
     readonly_fields = ["created"]
@@ -36,11 +48,43 @@ class BACnetPointAdmin(admin.ModelAdmin):
     fieldsets = (
         (
             "Point Identification",
-            {"fields": ("device", "object_type", "instance_number", "identifier")},
+            {
+                "fields": (
+                    "device",
+                    "object_type",
+                    "instance_number",
+                    "identifier",
+                )
+            },
         ),
         (
             "Additional Information",
-            {"fields": ("object_name", "description"), "classes": ("collapse",)},
+            {
+                "fields": ("object_name", "description"),
+                "classes": ("collapse",),
+            },
         ),
         ("Timestamps", {"fields": ("created",), "classes": ("collapse",)}),
     )
+
+
+@admin.register(BACnetReading)
+class BACnetReadingAdmin(admin.ModelAdmin):
+    list_display = ["point", "value", "read_time"]
+    list_filter = ["read_time", "point__device"]
+    search_fields = ["point__identifier", "value"]
+    readonly_fields = ["read_time"]
+    date_hierarchy = "read_time"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("point__device")
+
+
+@admin.register(VirtualBACnetDevice)
+class VirtualBACnetDeviceAdmin(admin.ModelAdmin):
+    list_display = ["device_id", "device_name", "port", "is_running", "created_at"]
+    list_filter = ["is_running"]
+    search_fields = ["device_id", "device_name"]
+
+
+admin.site.register(DeviceStatusHistory)

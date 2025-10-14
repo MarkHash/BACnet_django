@@ -1,46 +1,40 @@
 """
-URL configuration for bacnet_project project.
+URL configuration for BACnet Discovery - Simplified Core Version
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+Core URL patterns for device discovery and monitoring functionality.
+Focused on essential BACnet operations without advanced analytics.
 """
 
 from django.urls import path
 
 from . import views
+from .api_views import (
+    DeviceStatusAPIView,
+    DeviceTrendsAPIView,
+)
 
 app_name = "discovery"
 
 urlpatterns = [
+    # Core HTML views
     path("", views.dashboard, name="dashboard"),
     path("device/<int:device_id>/", views.device_detail, name="device_detail"),
+    # Device discovery and management APIs
     path("api/start-discovery/", views.start_discovery, name="start_discovery"),
     path(
-        "api/read-points/<int:device_id>/",
-        views.read_device_points,
-        name="read_device_points",
+        "api/discover-points/<int:device_id>/",
+        views.discover_device_points,
+        name="discover_device_points",
     ),
     path("api/clear-devices/", views.clear_devices, name="clear_devices"),
-    path("api/devices/", views.device_list_api, name="device_list_api"),
-    path("api/config/", views.config_info, name="config_info"),
-    path("api/debug/", views.debug_urls, name="debug_urls"),
+    # Point reading APIs
     path(
         "api/read-values/<int:device_id>/",
-        views.read_point_values,
-        name="read_point_values",
+        views.read_device_point_values,
+        name="read_device_point_values",
     ),
     path(
-        "api/read-point/<int:device_id>/<str:object_type>/<int:instance_number>/",
+        "api/read-point/<int:device_id>/<str:object_type>/" "<int:instance_number>/",
         views.read_single_point_value,
         name="read_single_point_value",
     ),
@@ -49,9 +43,41 @@ urlpatterns = [
         views.get_device_value_api,
         name="get_device_value_api",
     ),
+    # Device status and trends APIs (function-based)
     path(
-        "api/point-history/<int:point_id>/",
-        views.get_point_history_api,
-        name="get_point_history_api",
+        "api/devices/status/",
+        views.devices_status_api,
+        name="device_status_api",
+    ),
+    path(
+        "api/devices/<int:device_id>/analytics/trends/",
+        views.device_trends_api,
+        name="device_trends_api",
+    ),
+    # Class-based API views (v2)
+    path(
+        "api/v2/devices/status/",
+        DeviceStatusAPIView.as_view(),
+        name="device-status-api-v2",
+    ),
+    path(
+        "api/v2/devices/<int:device_id>/trends/",
+        DeviceTrendsAPIView.as_view(),
+        name="device-trends-api-v2",
+    ),
+    path(
+        "virtual-devices/",
+        views.virtual_device_list,
+        name="virtual_device_list",
+    ),
+    path(
+        "virtual-devices/create/",
+        views.virtual_device_create,
+        name="virtual_device_create",
+    ),
+    path(
+        "api/virtual-devices/<int:device_id>/delete/",
+        views.virtual_device_delete,
+        name="virtual_device_delete",
     ),
 ]

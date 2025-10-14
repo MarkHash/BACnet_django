@@ -1,10 +1,28 @@
+"""
+BACnet Django Models - Simplified Core Version
+
+This module defines the core database schema for BACnet device discovery and monitoring.
+Focused on essential device management and data collection functionality.
+
+Core Models:
+- BACnetDevice: Represents physical BACnet devices on the network
+- BACnetPoint: Individual data points (sensors/actuators) within devices
+- BACnetReading: Time-series data collected from points
+- DeviceStatusHistory: Historical device connectivity status
+
+The schema is designed for:
+- Multi-device building automation systems
+- Basic data collection and device management
+- Simple connectivity monitoring
+"""
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
 from .constants import BACnetConstants
 
 
-# Create your models here.
 class BACnetDevice(models.Model):
     device_id = models.IntegerField(
         unique=True, help_text="BACnet device instance number"
@@ -17,6 +35,8 @@ class BACnetDevice(models.Model):
 
     is_online = models.BooleanField(default=True)
     points_read = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["device_id"]
@@ -100,7 +120,7 @@ class BACnetPoint(models.Model):
         self.save()
 
     def get_display_value(self):
-        if not self.present_value:
+        if self.present_value is None or self.present_value == "":
             return "N/A"
 
         value = self.present_value
@@ -115,13 +135,15 @@ class BACnetPoint(models.Model):
             value = str(value)
 
         if self.units:
-            value = f"{value} {self.units}"
+            converted_units = BACnetConstants.UNIT_CONVERSIONS.get(
+                self.units, self.units
+            )
+            value = f"{value} {converted_units}"
         return value
 
     @property
     def is_readable(self):
         readable_types = BACnetConstants.READABLE_OBJECT_TYPES
-
         return self.object_type in readable_types
 
 
@@ -136,7 +158,7 @@ class BACnetReading(models.Model):
     value = models.CharField(max_length=100, help_text="Sensor reading value")
     units = models.CharField(max_length=50, blank=True, help_text="Engineering units")
     read_time = models.DateTimeField(
-        auto_now_add=True, help_text="When reading was taken"
+        default=timezone.now, help_text="When reading was taken"
     )
 
     quality = models.CharField(
@@ -163,3 +185,64 @@ class BACnetReading(models.Model):
         if self.units:
             return f"{self.value} {self.units}"
         return self.value
+
+
+class DeviceStatusHistory(models.Model):
+    device = models.ForeignKey(
+        BACnetDevice, on_delete=models.CASCADE, related_name="status_history"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_online = models.BooleanField()
+    response_time_ms = models.FloatField(null=True, blank=True)
+    successful_reads = models.IntegerField(default=0)
+    failed_reads = models.IntegerField(default=0)
+    packet_loss_percent = models.FloatField(
+        default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(100.0)]
+    )
+
+    class Meta:
+        ordering = ["-timestamp"]
+        verbose_name = "Device Status History"
+        verbose_name_plural = "Device Status Histories"
+        indexes = [
+            models.Index(fields=["device", "-timestamp"]),
+        ]
+
+    def __str__(self):
+        status = "Online" if self.is_online else "Offline"
+        return f"{self.device} - {status} at {self.timestamp}"
+
+
+class VirtualBACnetDevice(models.Model):
+    """Virtual BACnet devices created by the server"""
+
+    # Core device info
+    device_id = models.IntegerField(
+        unique=True, help_text="BACnet device instance number (must be unique)"
+    )
+    device_name = models.CharField(
+        max_length=200, help_text="Human-readable device name"
+    )
+    description = models.TextField(
+        blank=True, help_text="Optional description of this virtual device"
+    )
+
+    # Network configuration
+    port = models.IntegerField(
+        default=47808, help_text="BACnet UDP port (default 47808)"
+    )
+
+    # Status tracking
+    is_running = models.BooleanField(
+        default=False, help_text="Whether the virtual device is currently running"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["device_id"]
+        verbose_name = "Virtual BACnet Device"
+        verbose_name_plural = "Virtual BACnet Devices"
+
+    def __str__(self):
+        return f"Virtual Device {self.device_id} - {self.device_name}"

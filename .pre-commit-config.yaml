@@ -1,18 +1,39 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 23.12.1
+    rev: 25.9.0
     hooks:
       - id: black
-        language_version: python3.13
+        args: [--line-length=88]
+        language_version: python3.12
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 6.0.1
     hooks:
       - id: isort
         args: ["--profile", "black"]
 
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.3.1
+    hooks:
+      - id: autoflake
+        args: [--remove-all-unused-imports, --remove-unused-variables, --in-place]
+
   - repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
+    rev: 7.3.0
     hooks:
       - id: flake8
-        args: ["--max-line-length=88", "--extend-ignore=E203,W503", "--exclude=migrations,__pycache__,*.pyc,venv,tests.py,views.py,settings.py"]
+        args: ["--max-line-length=88", "--extend-ignore=E203,W503", "--exclude=migrations,__pycache__,*.pyc,venv"]
+
+  # - repo: local
+  #   hooks:
+  #   - id: django-test
+  #     name: Django Tests
+  #     entry: bash
+  #     language: system
+  #     types: [python]
+  #     pass_filenames: false
+  #     always_run: true
+  #     args: [
+  #       "-c",
+  #       "pg_isready -q || (echo 'Starting PostgreSQL...' && brew services start postgresql && sleep 3); python manage.py test discovery --verbosity=2 --settings=bacnet_project.ci_settings"
+  #     ]

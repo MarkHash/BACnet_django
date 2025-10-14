@@ -62,9 +62,13 @@
                     🗑️ Clear All Devices
                 </button>
 
-                <button id="refresh-btn" class="btn btn-secondary btn-lg">
+                <button id="refresh-btn" class="btn btn-secondary btn-lg me-3">
                     🔄 Refresh
                 </button>
+
+                <a href="{% url 'discovery:virtual_device_list' %}" class="btn btn-success btn-lg">
+                    🖥️ Manage Virtual Devices <span class="badge bg-secondary">Beta</span>
+                </a>
 
                 <div class="mt-3">
                     <small class="text-muted">
@@ -172,7 +176,7 @@
 
                 if (!pointsRead) {
                     e.preventDefault();
-                    const promise = apiCall(`/api/read-points/${deviceId}/`, 'POST');
+                    const promise = apiCall(`/api/discover-points/${deviceId}/`, 'POST');
                     handleButtonState(this, handleApiResponse(promise,
                         () => {
                             showAlert('Points discovered! Redirecting...', 'success');
@@ -191,10 +195,10 @@
             });
         });
 
-        document.querySelectorAll('.read-points-btn').forEach(btn => {
+        document.querySelectorAll('.discover-points-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const deviceId = this.dataset.deviceId;
-                const promise = apiCall(`/api/read-points/${deviceId}/`, 'POST');
+                const promise = apiCall(`/api/discover-points/${deviceId}/`, 'POST');
                 handleButtonState(this, handleApiResponse(promise), '⏳ Reading...'
                 );
             });

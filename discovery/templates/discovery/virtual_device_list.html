@@ -1,0 +1,137 @@
+{% extends 'discovery/base.html' %}
+{% block title %}Virtual BACnet Devices{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'discovery:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Virtual Devices</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="mb-1">Virtual BACnet Devices</h2>
+                <p class="text-muted mb-0">Create and manage virtual BACnet devices on your network</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 class="card-title">{{ total_devices }}</h3>
+                <p class="card-text">Total Virtual Devices</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3 class="card-title">{{ running_devices }}</h3>
+                <p class="card-text">Running Devices</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col text-end">
+        <a href="{% url 'discovery:virtual_device_create' %}" class="btn btn-primary btn-lg">
+            ➕ Create Virtual Device
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h5>Virtual Devices</h5>
+            </div>
+            <div class="card-body">
+                {% if virtual_devices %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Device ID</th>
+                                    <th>Device Name</th>
+                                    <th>Port</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for device in virtual_devices %}
+                                <tr>
+                                    <td><strong>{{ device.device_id }}</strong></td>
+                                    <td>{{ device.device_name }}</td>
+                                    <td>{{ device.port }}</td>
+                                    <td>
+                                        {% if device.is_running %}
+                                        <span class="badge bg-success">Running</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary"> Stopped</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ device.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger delete-device-btn" data-device-id="{{ device.device_id }}" data-device-name="{{ device.device_name }}">🗑️ Delete</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <h5 class="text-muted">No virtual devices created yet</h5>
+                        <p class="text-muted">Create your first virtual BACnet device to get started</p>
+                        <a href="{% url 'discovery:virtual_device_create' %}" class="btn btn-primary">➕ Create Virtual Device</a>
+                    </div>
+                    {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.delete-device-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const deviceId = this.dataset.deviceId;
+                const deviceName = this.dataset.deviceName;
+
+                if (confirm(`Are you sure you want to delete virtual device ${deviceId} (${deviceName})?`)) {
+                    fetch(`/api/virtual-devices/${deviceId}/delete/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        alert('Error deleting device: ' + error);
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,72 +1,64 @@
+import functools
 import logging
-from functools import wraps
+import uuid
 
-from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from django.utils import timezone
+from django_ratelimit.decorators import ratelimit
 
-from .exceptions import BACnetError, ConfigurationError
-from .models import BACnetDevice
-
-logger = logging.getLogger(__name__)
-
-
-def create_error_response_func():
-    from .views import create_error_response
-
-    return create_error_response
+from .exceptions import APIError, RateLimitExceededError
 
 
-def requires_device_and_client(view_func):
-    @wraps(view_func)
-    def wrapper(request, device_id, *args, **kwargs):
-        try:
-            from .views import ensure_bacnet_client
+def api_error_handler(view_func):
+    """Decorator for consistent API error handling"""
 
-            create_error_response = create_error_response_func()
-
-            device = get_object_or_404(BACnetDevice, device_id=device_id)
-            client = ensure_bacnet_client()
-
-            return view_func(request, device_id, device, client, *args, **kwargs)
-
-        except ConfigurationError as e:
-            logger.exception(
-                f"Configuration error in {view_func.__name__}"
-                f" for device {device_id}: {e}"
-            )
-            return create_error_response(e)
-        except BACnetError as e:
-            logger.exception(
-                f"BACnet error in {view_func.__name__} for device {device_id}: {e}"
-            )
-            return create_error_response(e)
-        except Exception as e:
-            logger.exception(
-                f"Unexpected error in {view_func.__name__} for device {device_id}: {e}"
-            )
-            return create_error_response(e)
-
-    return wrapper
-
-
-def requires_client_only(view_func):
-    @wraps(view_func)
+    @functools.wraps(view_func)
     def wrapper(request, *args, **kwargs):
+        request_id = str(uuid.uuid4())[:8]
+        logger = logging.getLogger(f"{view_func.__module__}.{view_func.__name__}")
+
         try:
-            from .views import ensure_bacnet_client
+            logger.info(
+                f"[{request_id}] API call started",
+                extra={
+                    "request_id": request_id,
+                    "path": request.path,
+                    "method": request.method,
+                },
+            )
 
-            create_error_response = create_error_response_func()
+            if getattr(request, "limited", False):
+                logger.warning(f"[{request_id}] Rate limit exceeded")
+                return RateLimitExceededError().to_response()
 
-            client = ensure_bacnet_client()
-            return view_func(request, client, *args, **kwargs)
+            response = view_func(request, *args, **kwargs)
 
-        except ConfigurationError as e:
-            logger.exception(f"Configuration error in {view_func.__name__}: {e}")
-            return create_error_response(e)
-        except BACnetError as e:
-            logger.exception(f"BACnet error in {view_func.__name__}: {e}")
-            return create_error_response(e)
+            logger.info(f"[{request_id}] API call completed successfully")
+            return response
+
+        except APIError as e:
+            logger.warning(f"[{request_id}] API error: {e}")
+            return e.to_response()
         except Exception as e:
-            logger.exception(f"Unexpected error in {view_func.__name__}: {e}")
-            return create_error_response(e)
+            logger.error(f"[{request_id}] Unexpected error: {e}", exc_info=True)
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "An unexpected error occurred",
+                        "request_id": request_id,
+                    },
+                    "timestamp": timezone.now().isoformat(),
+                },
+                status=500,
+            )
 
     return wrapper
+
+
+def api_rate_limit(group=None, key=None, rate="60/h", method="POST"):
+    """Standard API rate limiting decorator"""
+    return ratelimit(
+        group=group or "api", key=key or "ip", rate=rate, method=method, block=False
+    )

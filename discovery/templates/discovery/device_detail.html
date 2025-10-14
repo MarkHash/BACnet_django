@@ -26,7 +26,7 @@
                     <div class="text-end">
                         <button id="read-points-btn" class="btn btn-success btn-lg" data-device-id="{{ device.device_id }}">
                             <span class="spinner-border spinner-border-sm d-none" role="status"></span>
-                            📖 Read Points
+                            📖 Discover Points
                         </button>
                         <button id="read-values-btn" class="btn btn-success btn-lg" data-device-id="{{ device.device_id }}">
                             <span class="spinner-border spinner-border-sm d-none" role="status"></span>
@@ -132,13 +132,13 @@
                                             {% endif %}
                                         </div>
                                         <small class="text-muted">{{ point.object_type|capfirst }} {{ point.instance_number }}</small>
-                                        <br>
+                                        <!-- <br>
                                         <button class="btn btn-sm btn-outline-primary mt-2 read-single-point"
                                                 data-device-id="{{ device.device_id }}"
                                                 data-object-type="{{ point.object_type }}"
                                                 data-instance="{{ point.instance_number }}">
                                             🔄 Read Now
-                                        </button>
+                                        </button> -->
                                     </div>
                                 </div>
                             </div>
@@ -225,20 +225,6 @@
     </div>
 {% endif %}
 
-<div class="row mt-4">
-    <div class="col">
-        <div class="card">
-            <div class="card-header">
-                <h6>Device Actions</h6>
-            </div>
-            <div class="card-body">
-                <a href="{% url 'discovery:dashboard' %}" class="btn btn-outline-secondary">
-                    ← Back to Dashboard
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block javascript %}
@@ -260,13 +246,16 @@
         }
         document.getElementById('read-points-btn').addEventListener('click', function() {
             const deviceId = this.getAttribute('data-device-id');
+            console.log('Clicked read points for device:', deviceId);
 
             if (!deviceId) {
                 showAlert("Error: No device ID found", 'danger');
                 return;
             }
 
-            const promise = apiCall(`/api/read-points/${deviceId}/`, 'POST');
+            console.log('About to call discover-points API');
+            const promise = apiCall(`/api/discover-points/${deviceId}/`, 'POST');
+            console.log('API call made, waiting for response');
             handleButtonState(this,
                 handleApiResponse(promise,
                     (response) => {
@@ -281,6 +270,7 @@
 
         document.getElementById('read-values-btn').addEventListener('click', function(){
             const deviceId = this.getAttribute('data-device-id');
+            // const promise = apiCall(`/api/read-values/${deviceId}/`, 'POST');
             const promise = apiCall(`/api/read-values/${deviceId}/`, 'POST');
             handleButtonState(this,
                 handleApiResponse(promise,
@@ -299,27 +289,31 @@
             refreshSensorValues();
         });
 
-        document.getElementById('sensor-values-container').addEventListener('click', function(e) {
-            if (e.target.classList.contains('read-single-point')) {
-                const btn = e.target;
-                const deviceId = btn.getAttribute('data-device-id');
-                const objectType = btn.getAttribute('data-object-type');
-                const instance = btn.getAttribute('data-instance');
+        const sensorContainer = document.getElementById('sensor-values-container');
 
-                const promise = apiCall(`/api/read-point/${deviceId}/${objectType}/${instance}/`, 'POST');
+        // if (sensorContainer) {
+        //     sensorContainer.addEventListener('click', function(e) {
+        //         if (e.target.classList.contains('read-single-point')) {
+        //             const btn = e.target;
+        //             const deviceId = btn.getAttribute('data-device-id');
+        //             const objectType = btn.getAttribute('data-object-type');
+        //             const instance = btn.getAttribute('data-instance');
 
-                handleButtonState(btn,
-                    handleApiResponse(promise,
-                        (response) => {
-                            setTimeout(() => {
-                                refreshSensorValues();
-                            }, TIMEOUTS.BUTTON_RESET);
-                        }
-                    ),
-                    "⏳ Reading..."
-                );
-            }
-        });
+        //             const promise = apiCall(`/api/read-point/${deviceId}/${objectType}/${instance}/`, 'POST');
+
+        //             handleButtonState(btn,
+        //                 handleApiResponse(promise,
+        //                     (response) => {
+        //                         setTimeout(() => {
+        //                             refreshSensorValues();
+        //                         }, TIMEOUTS.BUTTON_RESET);
+        //                     }
+        //                 ),
+        //                 "⏳ Reading..."
+        //             );
+        //         }
+        //     });
+        // }
 
         function callApiAndHandleResponse(url, method, onSuccess, onError) {
             return apiCall(url, method)
@@ -361,8 +355,10 @@
         }
 
         function updatePointTables(points) {
+            const typeTableRows = document.querySelectorAll('.table-sm tbody tr');
+            if (typeTableRows.length === 0) return;
+            
             points.forEach(point => {
-                const typeTableRows = document.querySelectorAll('.table-sm tbody tr');
                 typeTableRows.forEach(row => {
                     const cells = row.querySelectorAll('td');
                     if (cells.length >= 3) {
@@ -437,7 +433,10 @@
             return document.getElementById('read-values-btn').getAttribute('data-device-id');
         }
         function updateLastUpdatedTime(){
-            document.getElementById('values-last-updated').textContent = 'Last updated: ' + new Date().toLocaleString();
+            const lastUpdatedElement = document.getElementById('values-last-updated')
+            if (lastUpdatedElement) {
+                lastUpdatedElement.textContent = 'Last updated: ' + new Date().toLocaleString();
+            }
         }
         setInterval(refreshSensorValues, TIMEOUTS.REFRESH_INTERVAL);
         
