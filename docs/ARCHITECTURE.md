@@ -217,13 +217,108 @@ Simplifies deployment and avoids FastAPI dependency. Windows development typical
 - Better performance for large datasets
 - Production-ready features (JSONB, indexing)
 
-## Future Enhancements
+## Future Improvements
 
-- **Virtual Devices:** Currently in Beta, needs more testing
-- **Device-Specific Collection:** TODO in `collect_readings.py`
-- **Advanced Analytics:** Trend analysis, anomaly detection
-- **Real-time Updates:** WebSocket support for live data
-- **Scheduling:** Automated reading collection
+### Enhanced Virtual Device Architecture (High Priority)
+
+**Current Limitation:**
+The current integrated architecture makes it difficult to create fully functional virtual BACnet devices that are discoverable by other BACnet clients on the network.
+
+**Proposed Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Host Machine                          │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  BACnet API Service (Port 5001) - FastAPI        │  │
+│  │  ┌────────────────────────────────────────────┐  │  │
+│  │  │  Async Virtual Device Manager              │  │  │
+│  │  │  ├── Virtual Device 1000 (async server)    │  │  │
+│  │  │  ├── Virtual Device 1001 (async server)    │  │  │
+│  │  │  └── Virtual Device 1002 (async server)    │  │  │
+│  │  └────────────────────────────────────────────┘  │  │
+│  │  ┌────────────────────────────────────────────┐  │  │
+│  │  │  BACnet Client (Discovery & Reading)       │  │  │
+│  │  └────────────────────────────────────────────┘  │  │
+│  └──────────────────────────────────────────────────┘  │
+│                 ↑ HTTP API                              │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Docker: Django Web App (Port 8000)              │  │
+│  │  - User interface                                │  │
+│  │  - HTTP client to BACnet API                     │  │
+│  │  - Database operations                           │  │
+│  └──────────────────────────────────────────────────┘  │
+│                 ↓                                       │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Docker: PostgreSQL                              │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Why This Architecture is Needed:**
+
+**Problem with Current Approach:**
+- Django's WSGI is synchronous - blocks during virtual device operations
+- Creating multiple virtual devices requires async event loops for concurrent UDP listeners
+- Each virtual device needs to listen on port 47808 and respond to BACnet requests
+- Mixing web requests with BACnet network operations creates complexity
+
+**Solution with Separated Architecture:**
+- FastAPI provides native async/await support
+- BACnet API runs on host with direct network access
+- Virtual devices can run concurrently without blocking web app
+- Each virtual device acts as independent BACnet server (discoverable via WhoIs)
+- Django simplified to just UI + database + HTTP client calls
+
+**Benefits:**
+- ✅ **True async support**: Manage 100+ virtual devices concurrently
+- ✅ **Network discoverability**: Virtual devices respond to WhoIs broadcasts from real BACnet clients
+- ✅ **Clean separation**: BACnet networking logic isolated from web application
+- ✅ **Scalability**: Can handle complex testing scenarios with many devices
+- ✅ **Platform consistency**: Same architecture on Windows, macOS, Linux
+
+**Implementation Requirements:**
+- FastAPI service with async virtual device manager
+- BAC0.VirtualDevice instances running as async servers
+- Django HTTP client to communicate with BACnet API
+- Docker configuration with `host.docker.internal` for API access
+
+**Estimated Effort:** 2-3 weeks
+
+**Reference:** The `feat/bacnet-api-service` branch explored this architecture but became overly complex. A simplified async-only-where-needed approach would be more maintainable.
+
+---
+
+### Other Planned Enhancements
+
+**Automated Reading Collection:**
+- Scheduled periodic data collection (Celery + Redis)
+- Configurable intervals per device
+- Background task processing
+
+**Advanced Analytics:**
+- Time-series visualization (Chart.js/Plotly)
+- Anomaly detection for unusual readings
+- Data export (CSV/Excel)
+- Custom dashboards
+
+**Real-time Updates:**
+- WebSocket support (Django Channels)
+- Live sensor value updates without page refresh
+- Instant device status notifications
+
+**Device-Specific Collection:**
+- Implement TODO in `collect_readings.py:25`
+- Selective reading from specific devices
+- Optimized data collection strategies
+
+**Additional Features:**
+- User authentication and role-based permissions
+- Device groups and organization
+- Alerting and notifications
+- BACnet write operations (control setpoints)
+- Multi-network support
 
 ## Security Considerations
 
